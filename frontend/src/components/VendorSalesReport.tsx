@@ -17,7 +17,7 @@ import { Wallet, TrendingUp, ShoppingCart, Calendar, Plus, RefreshCw, Download, 
  */
 
 function VendorSalesReport() {
-  const { user } = useUser();
+  const { user, apiRequest } = useUser();
 
   // Data state
   const [sales, setSales] = useState([]);
@@ -57,7 +57,7 @@ function VendorSalesReport() {
     notes: ''
   });
 
-  const token = useMemo(() => localStorage.getItem('token'), []);
+  // Authorization is handled by apiRequest (auto-injects access token and refreshes on 401)
 
   useEffect(() => {
     // initial loads
@@ -90,13 +90,7 @@ function VendorSalesReport() {
       params.set('sort_by', sortBy);
       params.set('sort_order', sortOrder);
 
-      const response = await fetch(`${config.API_BASE_URL}/api/vendors/sales?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) throw new Error(`Failed to fetch sales: ${response.status} ${response.statusText}`);
-
-      const data = await response.json();
+      const data = await apiRequest(`/api/vendors/sales?${params.toString()}`);
       setSales(Array.isArray(data.sales) ? data.sales : []);
 
       // Try to infer total pages from pagination
@@ -123,21 +117,17 @@ function VendorSalesReport() {
       setLoadingAnalytics(true);
       // Resilient analytics endpoints
       const paths = [
-        `${config.API_BASE_URL}/api/vendors/analytics?period=${p}`,
-        `${config.API_BASE_URL}/api/vendor/analytics?period=${p}`,
-        `${config.API_BASE_URL}/api/vendors/sales/analytics?period=${p}`,
+        `/api/vendors/analytics?period=${p}`,
+        `/api/vendor/analytics?period=${p}`,
+        `/api/vendors/sales/analytics?period=${p}`,
       ];
 
       let found = null;
       let lastErr = null;
       for (const url of paths) {
         try {
-          const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-          if (resp.ok) {
-            found = await resp.json();
-            break;
-          }
-          lastErr = new Error(`${resp.status} ${resp.statusText}`);
+          found = await apiRequest(url);
+          break;
         } catch (e) {
           lastErr = e;
         }
@@ -158,21 +148,7 @@ function VendorSalesReport() {
   const fetchProducts = async () => {
     try {
       setProductsLoading(true);
-      const response = await fetch(`${config.API_BASE_URL}/api/vendor/products`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        setProducts([]);
-        setErrors((prev) => ({
-          ...prev,
-          products:
-            'Unable to load products from server. You can still submit sales reports by entering product details manually.',
-        }));
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiRequest('/api/vendor/products');
       const list = Array.isArray(data.products) ? data.products : [];
       setProducts(list);
 
@@ -258,12 +234,8 @@ function VendorSalesReport() {
       } else {
         // Create product first, then submit sale
         try {
-          const productResponse = await fetch(`${config.API_BASE_URL}/api/vendor/products`, {
+          const newProduct = await apiRequest('/api/vendor/products', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
             body: JSON.stringify({
               name: formData.product_name,
               price: parseFloat(formData.total_amount) / parseInt(formData.quantity),
@@ -272,8 +244,7 @@ function VendorSalesReport() {
             }),
           });
 
-          if (productResponse.ok) {
-            const newProduct = await productResponse.json();
+          if (newProduct) {
             submissionData = {
               product_id: newProduct.product?.id || newProduct.id,
               quantity: parseInt(formData.quantity),
@@ -303,26 +274,10 @@ function VendorSalesReport() {
         }
       }
 
-      const resp = await fetch(`${config.API_BASE_URL}/api/vendors/sales`, {
+      await apiRequest('/api/vendors/sales', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(submissionData),
       });
-
-      if (!resp.ok) {
-        let message = 'Failed to submit sales report';
-        try {
-          const errorData = await resp.json();
-          message = errorData.message || errorData.error || message;
-        } catch {
-          const text = await resp.text();
-          message = text || message;
-        }
-        throw new Error(message);
-      }
 
       // Success
       resetForm();

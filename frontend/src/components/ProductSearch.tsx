@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Loading, { SkeletonLoader } from './Loading';
 import { Button, Card } from './ui';
 import { listListings, ListingItem } from '../api/listings';
 import config from '../config';
 
 const ProductSearch = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ListingItem[]>([]);
   const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; total_pages: number } | null>(null);
@@ -52,11 +54,34 @@ const ProductSearch = () => {
     await fetchResults(1);
   };
 
-  // Load initial listings for shoppers (latest)
+  // Initialize from URL params and load initial listings
   React.useEffect(() => {
+    const q = searchParams.get('q') || '';
+    const st = searchParams.get('state') || '';
+    const cat = searchParams.get('category') || '';
+    const sb = (searchParams.get('sortBy') as any) || 'relevance';
+    const so = (searchParams.get('sortOrder') as any) || 'DESC';
+    const ps = parseInt(searchParams.get('pageSize') || '20');
+    setSearchQuery(q);
+    setFilters((prev) => ({ ...prev, state: st, category: cat }));
+    setSortBy(['relevance','created_at','price'].includes(sb) ? sb : 'relevance');
+    setSortOrder(so === 'ASC' ? 'ASC' : 'DESC');
+    setPageSize([12,20,40,100].includes(ps) ? ps : 20);
     fetchResults(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist filters/sort/page size to URL
+  React.useEffect(() => {
+    const params: any = {};
+    if (searchQuery) params.q = searchQuery;
+    if (filters.state) params.state = filters.state;
+    if (filters.category) params.category = filters.category;
+    if (sortBy) params.sortBy = sortBy;
+    if (sortOrder) params.sortOrder = sortOrder;
+    if (pageSize) params.pageSize = String(pageSize);
+    setSearchParams(params, { replace: true });
+  }, [searchQuery, filters.state, filters.category, sortBy, sortOrder, pageSize]);
 
   const addToWatchlist = () => {
     // Mock add to watchlist

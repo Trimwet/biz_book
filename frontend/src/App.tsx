@@ -808,7 +808,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/vendor/dashboard" element={<VendorDashboard />} />
           <Route path="/shopper/dashboard" element={<ShopperDashboard />} />
-          <Route path="/search" element={<AdvancedProductSearch />} />
+          <Route path="/search" element={<ProductSearch />} />
           <Route path="/listings" element={<ProductSearch />} />
           <Route path="/vendor/products" element={<VendorProductManager />} />
           <Route path="/profile" element={<UserProfile />} />
@@ -821,6 +821,7 @@ function App() {
           <Route path="/vendor/sales" element={<VendorSalesReport />} />
           <Route path="/browse" element={<ProductBrowse />} />
           <Route path="/vendor/:vendorId/products" element={<ProductBrowse />} />
+          <Route path="/vendor/listings/new" element={<ListingForm />} />
           {/* Vendor Reviews Dashboard */}
           <Route path="/vendor/reviews" element={
             <div className="max-w-6xl mx-auto p-6">

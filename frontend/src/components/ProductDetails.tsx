@@ -29,22 +29,33 @@ const ProductDetails = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${config.API_BASE_URL}/api/products/${id}`, {
-        headers: {
-          'Authorization': user?.token ? `Bearer ${user.token}` : '',
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(`${config.API_BASE_URL}/api/listings/${id}`);
 
       if (!response.ok) {
-        throw new Error('Product not found');
+        throw new Error('Listing not found');
       }
 
       const data = await response.json();
-      setProduct(data.product);
+      // Map listing detail to existing UI shape
+      const mapped = {
+        id: data.id,
+        name: data.title,
+        description: data.description,
+        price: Number(data.price),
+        category: data.category,
+        vendor_name: data.vendor?.name ?? data.vendor_name,
+        vendor_location: data.vendor?.location ?? data.vendor_location,
+        vendor_phone: data.vendor_phone,
+        image_url: (data.images && data.images.find((i) => i.is_primary)?.image_url) || (data.images?.[0]?.image_url ?? null),
+        reviews: [],
+        review_count: 0,
+        average_rating: 0,
+        specifications: {}
+      } as any;
 
-      // Set first image as selected
-      if (data.product.image_url) {
+      setProduct(mapped);
+
+      if (mapped.image_url) {
         setSelectedImage(0);
       }
 

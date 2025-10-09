@@ -10,6 +10,7 @@ import Login from './components/Login';
 import VendorDashboard from './components/VendorDashboard';
 import ShopperDashboard from './components/ShopperDashboard';
 import AdvancedProductSearch from './components/AdvancedProductSearch';
+import ProductSearch from './components/ProductSearch';
 import VendorProductManager from './components/VendorProductManager';
 import UserProfile from './components/UserProfile';
 import Watchlist from './components/Watchlist';
@@ -23,6 +24,7 @@ import EnhancedProductComparison from './components/EnhancedProductComparison';
 import ProductBrowse from './components/ProductBrowse';
 import CustomerReviews from './components/CustomerReviews';
 import Logo from './components/Logo';
+import ListingForm from './components/ListingForm';
 
 
 
@@ -807,6 +809,7 @@ function App() {
           <Route path="/vendor/dashboard" element={<VendorDashboard />} />
           <Route path="/shopper/dashboard" element={<ShopperDashboard />} />
           <Route path="/search" element={<AdvancedProductSearch />} />
+          <Route path="/listings" element={<ProductSearch />} />
           <Route path="/vendor/products" element={<VendorProductManager />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/watchlist" element={<Watchlist />} />

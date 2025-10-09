@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import Loading, { SkeletonLoader } from './Loading';
 import { Button, Card } from './ui';
+import { listListings, ListingItem } from '../api/listings';
+import config from '../config';
 
 const ProductSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
@@ -21,12 +23,17 @@ const ProductSearch = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/products/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch search results');
-      }
-      const results = await response.json();
-      setSearchResults(results);
+      const { items } = await listListings({
+        query: searchQuery,
+        category: filters.category || undefined,
+        minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
+        maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
+        page: 1,
+        limit: 20,
+        sortBy: 'created_at',
+        sortOrder: 'DESC'
+      });
+      setSearchResults(items);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
@@ -196,7 +203,7 @@ const ProductSearch = () => {
           <div className="space-y-6 fade-in">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <h2 className="text-xl font-bold text-gray-900">
-                Search Results ({searchResults.length} products found)
+                Search Results ({searchResults.length} listings found)
               </h2>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Sort by:</span>
@@ -210,48 +217,26 @@ const ProductSearch = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {searchResults.map((product) => (
-                <div key={product.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
+              {searchResults.map((listing) => (
+                <div key={listing.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
                   <div className="relative">
-                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-                      <div className="text-6xl">📱</div>
+                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {listing.cover_image ? (
+                        <img src={listing.cover_image} alt={listing.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-4xl">🛍️</div>
+                      )}
                     </div>
-                    {product.discount > 0 && (
-                      <div className="absolute top-2 left-2 bg-gray-700 text-white px-2 py-1 rounded-md text-sm font-medium">
-                        -{product.discount}%
-                      </div>
-                    )}
-                    {!product.inStock && (
-                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                        <span className="bg-gray-700 text-white px-3 py-1 rounded-md font-medium">Out of Stock</span>
-                      </div>
-                    )}
                   </div>
                   
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-                    
-                    <div className="flex items-center mb-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <svg
-                            key={i}
-                            className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                        ))}
-                        <span className="ml-1 text-sm text-gray-600">({product.reviews})</span>
-                      </div>
-                    </div>
+                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{listing.title}</h3>
                     
                     <div className="mb-3">
                       <div className="flex items-center space-x-2">
-                        <span className="text-2xl font-bold text-gray-900">₦{product.price.toLocaleString()}</span>
-                        {product.originalPrice > product.price && (
-                          <span className="text-sm text-gray-500 line-through">₦{product.originalPrice.toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-gray-900">₦{Number(listing.price || 0).toLocaleString()}</span>
+                        {listing.category && (
+                          <span className="text-xs text-gray-600 border border-gray-200 rounded px-2 py-0.5">{listing.category}</span>
                         )}
                       </div>
                     </div>
@@ -261,20 +246,20 @@ const ProductSearch = () => {
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
-                        {product.vendor}
+                        {listing.vendor?.name}
                       </div>
                       <div className="flex items-center mt-1">
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        {product.location}
+                        {listing.vendor?.location}
                       </div>
                     </div>
                     
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => addToWatchlist(product.id)}
+                        onClick={() => addToWatchlist(listing.id)}
                         className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,7 +268,7 @@ const ProductSearch = () => {
                         Watchlist
                       </button>
                       <button
-                        onClick={() => compareProduct(product.id)}
+                        onClick={() => compareProduct(listing.id)}
                         className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition-colors"
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

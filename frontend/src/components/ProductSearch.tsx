@@ -269,12 +269,13 @@ const ProductSearch = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600">Page</span>
-                    className="px-3 py-1 border rounded disabled:opacity-50"
-                    disabled={!pagination || page <= 1}
-                    onClick={() => fetchResults(page - 1)}
-                  >
-                    Prev
-                  </button>
+                    <button
+                      className="px-3 py-1 border rounded disabled:opacity-50"
+                      disabled={!pagination || page <= 1}
+                      onClick={() => fetchResults(page - 1)}
+                    >
+                      Prev
+                    </button>
                   <span className="text-sm text-gray-700">
                     {pagination ? `${page} / ${pagination.total_pages}` : page}
                   </span>

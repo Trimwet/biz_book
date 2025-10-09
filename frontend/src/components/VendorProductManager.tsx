@@ -4,7 +4,8 @@ import PhotoUpload from './PhotoUpload';
 import Skeleton from './ui/Skeleton';
 import { ToastContext } from '../contexts/ToastContext';
 import { useUser } from '../hooks/useUser';
-import { FiSearch, FiPlus, FiEdit3, FiTrash2, FiEye, FiEyeOff, FiRefreshCw, FiSave, FiX, FiCheck, FiAlertCircle, FiPackage, FiTrendingUp, FiDollarSign, FiBox, FiUpload, FiFilter, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiSearch, FiPlus, FiEdit3, FiTrash2, FiEye, FiEyeOff, FiRefreshCw, FiSave, FiX, FiCheck, FiAlertCircle, FiPackage, FiTrendingUp, FiDollarSign, FiBox, FiUpload, FiFilter, FiChevronLeft, FiChevronRight, FiInfo } from 'react-icons/fi';
 
 // Form input component with validation (moved outside to prevent re-creation)
 const FormInput = ({ name, label, type = 'text', placeholder, required = false, formData, setFormData, formErrors, ...props }) => (
@@ -45,6 +46,8 @@ const VendorProductManager = () => {
   const [formErrors, setFormErrors] = useState({});
   const [isValidating, setIsValidating] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const navigate = useNavigate();
+  const [showGuide, setShowGuide] = useState(true);
   
   // Enhanced filters with search debouncing
   const [filters, setFilters] = useState({
@@ -638,6 +641,30 @@ const VendorProductManager = () => {
             </div>
           </div>
         </div>
+
+        {/* Vendor Guidance: Products vs Listings */}
+        {showGuide && (
+          <Card className="mb-6">
+            <div className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-blue-600"><FiInfo className="w-5 h-5" /></div>
+                <div>
+                  <div className="font-semibold text-gray-900">Quick guide: When to use Product vs Listing</div>
+                  <ul className="mt-1 text-sm text-gray-700 list-disc pl-5 space-y-1">
+                    <li>Product (catalog): reusable item with stock, specs, images. Best for ongoing inventory.</li>
+                    <li>Listing (one-off): ad-style post with price/condition/location. Best for single items, bundles, or limited-time offers.</li>
+                    <li>Publish toggle controls marketplace visibility for Products.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700">Add Product</Button>
+                <Button onClick={() => navigate('/vendor/listings/new')} variant="outline">Quick Listing</Button>
+                <button onClick={() => setShowGuide(false)} className="text-sm text-gray-500 hover:text-gray-700">Hide</button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

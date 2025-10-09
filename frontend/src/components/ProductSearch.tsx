@@ -245,11 +245,7 @@ const ProductSearch = () => {
           <div className="space-y-6 fade-in">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <h2 className="text-xl font-bold text-gray-900">
-                {pagination ? (
-                  <>Search Results ({pagination.total} listings found)</>
-                ) : (
-                  <>Search Results</>
-                )}
+                {pagination ? `Search Results (${pagination.total} listings found)` : 'Search Results'}
               </h2>
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-3">

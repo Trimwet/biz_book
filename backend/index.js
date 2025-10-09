@@ -34,6 +34,7 @@ const validator = require('validator');
 // backend/index.js
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
+const listingsRoutes = require('./routes/listings');
 const vendorRoutes = require('./routes/vendor');
 const shopperRoutes = require('./routes/shopper');
 const { router: searchRoutes } = require('./routes/search');
@@ -202,6 +203,7 @@ app.get('/api/csrf-token', (req, res) => {
 // Apply optional CSRF protection to auth routes and other state-changing operations
 app.use('/api/auth', authLimiter, optionalCSRFProtection, authRoutes);
 app.use('/api/products', optionalCSRFProtection, productRoutes);
+app.use('/api/listings', optionalCSRFProtection, listingsRoutes);
 app.use('/api/search', optionalCSRFProtection, searchRoutes);
 app.use('/api', optionalCSRFProtection, vendorRoutes); // This will handle routes like /api/vendors/*
 app.use('/api', optionalCSRFProtection, shopperRoutes);

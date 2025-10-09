@@ -329,6 +329,14 @@ const ProductDetails = () => {
               <Button onClick={shareProduct} variant="outline">
                 <FiShare2 className="w-4 h-4" />
               </Button>
+              {product.vendor_phone && (
+                <a
+                  href={`tel:${toWhatsAppNumber(product.vendor_phone)}`}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                >
+                  Call Vendor
+                </a>
+              )}
               {product.vendor_phone && waLink() && (
                 <a
                   href={waLink()}

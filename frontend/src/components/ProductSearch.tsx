@@ -12,12 +12,15 @@ const ProductSearch = () => {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
+    state: '',
     minPrice: '',
     maxPrice: '',
     location: '',
     rating: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<'relevance' | 'created_at' | 'price'>('relevance');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   const fetchResults = async (nextPage: number) => {
     if (!searchQuery.trim()) return;
@@ -26,12 +29,13 @@ const ProductSearch = () => {
       const { items, pagination } = await listListings({
         query: searchQuery,
         category: filters.category || undefined,
+        state: filters.state || undefined,
         minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
         maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
         page: nextPage,
         limit: 20,
-        sortBy: 'created_at',
-        sortOrder: 'DESC'
+        sortBy,
+        sortOrder
       });
       setSearchResults(items);
       setPagination(pagination || null);
@@ -123,7 +127,7 @@ const ProductSearch = () => {
             {/* Filters */}
             {showFilters && (
               <div className="border-t border-gray-200 pt-4 mt-4">
-                <div className="grid md:grid-cols-5 gap-4">
+                <div className="grid md:grid-cols-6 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                     <select
@@ -136,6 +140,31 @@ const ProductSearch = () => {
                       <option value="fashion">Fashion</option>
                       <option value="home">Home & Garden</option>
                       <option value="sports">Sports</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <select
+                      value={filters.state}
+                      onChange={(e) => setFilters({...filters, state: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                    >
+                      <option value="">All States</option>
+                      <option value="Lagos">Lagos</option>
+                      <option value="Abuja">Abuja (FCT)</option>
+                      <option value="Rivers">Rivers</option>
+                      <option value="Oyo">Oyo</option>
+                      <option value="Kano">Kano</option>
+                      <option value="Ogun">Ogun</option>
+                      <option value="Kaduna">Kaduna</option>
+                      <option value="Anambra">Anambra</option>
+                      <option value="Enugu">Enugu</option>
+                      <option value="Delta">Delta</option>
+                      <option value="Edo">Edo</option>
+                      <option value="Imo">Imo</option>
+                      <option value="Akwa Ibom">Akwa Ibom</option>
+                      <option value="Plateau">Plateau</option>
+                      <option value="Others">Other State</option>
                     </select>
                   </div>
                   <div>
@@ -217,9 +246,29 @@ const ProductSearch = () => {
                 )}
               </h2>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Page</span>
-                <div className="flex items-center space-x-2">
-                  <button
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Sort</span>
+                    <select
+                      className="px-3 py-1 border rounded text-sm"
+                      value={sortBy}
+                      onChange={(e) => { setSortBy(e.target.value as any); fetchResults(1); }}
+                    >
+                      <option value="relevance">Relevance</option>
+                      <option value="created_at">Newest</option>
+                      <option value="price">Price</option>
+                    </select>
+                    <select
+                      className="px-3 py-1 border rounded text-sm"
+                      value={sortOrder}
+                      onChange={(e) => { setSortOrder(e.target.value as any); fetchResults(1); }}
+                    >
+                      <option value="DESC">Desc</option>
+                      <option value="ASC">Asc</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Page</span>
                     className="px-3 py-1 border rounded disabled:opacity-50"
                     disabled={!pagination || page <= 1}
                     onClick={() => fetchResults(page - 1)}

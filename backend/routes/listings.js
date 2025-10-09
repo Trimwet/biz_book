@@ -45,6 +45,10 @@ router.get('/', async (req, res) => {
       params.push(sanitize(category));
       clauses.push(`p.category = $${params.length}`);
     }
+    if (req.query.state) {
+      params.push(`%${sanitize(req.query.state)}%`);
+      clauses.push(`p.state ILIKE $${params.length}`);
+    }
     if (minPrice) {
       params.push(parseFloat(minPrice));
       clauses.push(`p.price >= $${params.length}`);

@@ -25,6 +25,7 @@ import ProductBrowse from './components/ProductBrowse';
 import CustomerReviews from './components/CustomerReviews';
 import Logo from './components/Logo';
 import ComingSoon from './components/ComingSoon';
+import { RequireVendor, RequireShopper } from './routes/guards';
 
 
 
@@ -826,22 +827,26 @@ function App() {
           <Route path="/signup/vendor" element={<VendorSignup />} />
           <Route path="/signup/shopper" element={<ShopperSignup />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-          <Route path="/shopper/dashboard" element={<ShopperDashboard />} />
+          <Route element={<RequireVendor />}>
+            <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+            <Route path="/vendor/products" element={<VendorProductManager />} />
+            <Route path="/vendor/analytics" element={<VendorAnalytics />} />
+            <Route path="/vendor/sales" element={<VendorSalesReport />} />
+            <Route path="/vendor/:vendorId/products" element={<ProductBrowse />} />
+            <Route path="/vendor/listings/new" element={<ComingSoon />} />
+          </Route>
+          <Route element={<RequireShopper />}>
+            <Route path="/shopper/dashboard" element={<ShopperDashboard />} />
+          </Route>
           <Route path="/search" element={<ProductSearch />} />
           <Route path="/listings" element={<ProductSearch />} />
-          <Route path="/vendor/products" element={<VendorProductManager />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/watchlist" element={<Watchlist />} />
           <Route path="/alerts" element={<SmartPriceAlerts />} />
-          <Route path="/vendor/analytics" element={<VendorAnalytics />} />
           <Route path="/social" element={<SocialShopping />} />
           <Route path="/compare" element={<EnhancedProductComparison />} />
           <Route path="/product/:id" element={<ProductDetails />} />
-          <Route path="/vendor/sales" element={<VendorSalesReport />} />
           <Route path="/browse" element={<ProductBrowse />} />
-          <Route path="/vendor/:vendorId/products" element={<ProductBrowse />} />
-          <Route path="/vendor/listings/new" element={<ComingSoon />} />
           {/* Vendor Reviews Dashboard */}
           <Route path="/vendor/reviews" element={
             <div className="max-w-6xl mx-auto p-6">

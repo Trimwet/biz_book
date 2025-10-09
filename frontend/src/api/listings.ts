@@ -24,6 +24,7 @@ export interface ListingDetail extends ListingItem {
 export interface ListListingsParams {
   query?: string;
   category?: string;
+  state?: string;
   minPrice?: number;
   maxPrice?: number;
   page?: number;
@@ -37,6 +38,7 @@ export async function listListings(params: ListListingsParams = {}): Promise<{ i
   const q = new URLSearchParams();
   if (params.query) q.set('query', params.query);
   if (params.category) q.set('category', params.category);
+  if (params.state) q.set('state', params.state);
   if (params.minPrice != null) q.set('minPrice', String(params.minPrice));
   if (params.maxPrice != null) q.set('maxPrice', String(params.maxPrice));
   if (params.page) q.set('page', String(params.page));

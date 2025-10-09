@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import Loading, { SkeletonLoader } from './Loading';
 import { Button, Card } from './ui';
 import { listListings, ListingItem } from '../api/listings';
@@ -51,10 +51,16 @@ const ProductSearch = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
+    if (!searchQuery.trim()) {
+      // Do not fetch default results when no query provided
+      setSearchResults([]);
+      setPagination(null);
+      return;
+    }
     await fetchResults(1);
   };
 
-  // Initialize from URL params and load initial listings
+  // Initialize from URL params (do not auto-fetch unless there's a query)
   React.useEffect(() => {
     const q = searchParams.get('q') || '';
     const st = searchParams.get('state') || '';
@@ -62,16 +68,20 @@ const ProductSearch = () => {
     const sb = (searchParams.get('sortBy') as any) || 'relevance';
     const so = (searchParams.get('sortOrder') as any) || 'DESC';
     const ps = parseInt(searchParams.get('pageSize') || '20');
+    const pg = parseInt(searchParams.get('page') || '1');
     setSearchQuery(q);
     setFilters((prev) => ({ ...prev, state: st, category: cat }));
     setSortBy(['relevance','created_at','price'].includes(sb) ? sb : 'relevance');
     setSortOrder(so === 'ASC' ? 'ASC' : 'DESC');
     setPageSize([12,20,40,100].includes(ps) ? ps : 20);
-    fetchResults(1);
+    setPage(isNaN(pg) || pg < 1 ? 1 : pg);
+    if (q.trim()) {
+      fetchResults(isNaN(pg) || pg < 1 ? 1 : pg);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist filters/sort/page size to URL
+  // Persist filters/sort/page size/page to URL
   React.useEffect(() => {
     const params: any = {};
     if (searchQuery) params.q = searchQuery;
@@ -80,8 +90,9 @@ const ProductSearch = () => {
     if (sortBy) params.sortBy = sortBy;
     if (sortOrder) params.sortOrder = sortOrder;
     if (pageSize) params.pageSize = String(pageSize);
+    if (page) params.page = String(page);
     setSearchParams(params, { replace: true });
-  }, [searchQuery, filters.state, filters.category, sortBy, sortOrder, pageSize]);
+  }, [searchQuery, filters.state, filters.category, sortBy, sortOrder, pageSize, page]);
 
   const addToWatchlist = () => {
     // Mock add to watchlist
@@ -132,7 +143,7 @@ const ProductSearch = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center px-6 py-3 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center px-4 py-2 md:px-4 md:py-2 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? (
                     <div className="flex items-center">
@@ -158,6 +169,15 @@ const ProductSearch = () => {
             {/* Filters */}
             {showFilters && (
               <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex justify-end mb-3">
+                  <button
+                    type="button"
+                    onClick={() => { setFilters({ category:'', state:'', minPrice:'', maxPrice:'', location:'', rating:'' }); setPage(1); }}
+                    className="text-sm text-gray-600 hover:text-gray-900 underline"
+                  >
+                    Clear filters
+                  </button>
+                </div>
                 <div className="grid md:grid-cols-6 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -253,8 +273,10 @@ const ProductSearch = () => {
 
         {/* Search Results */}
         {loading && (
-          <div className="space-y-6">
-            <SkeletonLoader type="card" count={6} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(pageSize)].map((_, i) => (
+              <div key={i} className="h-72 bg-white border border-gray-200 rounded-lg animate-pulse" />
+            ))}
           </div>
         )}
         
@@ -272,7 +294,7 @@ const ProductSearch = () => {
               <h2 className="text-xl font-bold text-gray-900">
                 {pagination ? `Search Results (${pagination.total} listings found)` : 'Search Results'}
               </h2>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center flex-wrap gap-3">
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600">Sort</span>
@@ -300,7 +322,7 @@ const ProductSearch = () => {
                       <select
                         className="px-2 py-1 border rounded text-sm"
                         value={pageSize}
-                        onChange={(e) => { setPageSize(parseInt(e.target.value as any)); fetchResults(1); }}
+                        onChange={(e) => { setPageSize(parseInt(e.target.value as any)); setPage(1); fetchResults(1); }}
                       >
                         <option value={12}>12</option>
                         <option value={20}>20</option>
@@ -311,23 +333,23 @@ const ProductSearch = () => {
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-600">Page</span>
                       <button
-                      className="px-3 py-1 border rounded disabled:opacity-50"
-                      disabled={!pagination || page <= 1}
-                      onClick={() => fetchResults(page - 1)}
-                    >
-                      Prev
-                    </button>
-                  <span className="text-sm text-gray-700">
-                    {pagination ? `${page} / ${pagination.total_pages}` : page}
-                  </span>
-                  <button
-                    className="px-3 py-1 border rounded disabled:opacity-50"
-                    disabled={!pagination || page >= (pagination?.total_pages || 1)}
-                    onClick={() => fetchResults(page + 1)}
-                  >
-                    Next
-                  </button>
-                  </div>
+                        className="px-3 py-1 border rounded disabled:opacity-50"
+                        disabled={!pagination || page <= 1}
+                        onClick={() => { setPage(page - 1); fetchResults(page - 1); }}
+                      >
+                        Prev
+                      </button>
+                      <span className="text-sm text-gray-700">
+                        {pagination ? `${page} / ${pagination.total_pages}` : page}
+                      </span>
+                      <button
+                        className="px-3 py-1 border rounded disabled:opacity-50"
+                        disabled={!pagination || page >= (pagination?.total_pages || 1)}
+                        onClick={() => { setPage(page + 1); fetchResults(page + 1); }}
+                      >
+                        Next
+                      </button>
+                    </div>
                 </div>
               </div>
             </div>
@@ -375,6 +397,12 @@ const ProductSearch = () => {
                     </div>
                     
                     <div className="flex space-x-2">
+                      <Link
+                        to={`/product/${listing.id}`}
+                        className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        View Details
+                      </Link>
                       <button
                         onClick={() => addToWatchlist(listing.id)}
                         className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"

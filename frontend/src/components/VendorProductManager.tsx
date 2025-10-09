@@ -74,10 +74,14 @@ const VendorProductManager = () => {
     stock_quantity: '',
     image: '',
     sku: '',
-    status: 'active'
+    state: 'active'
   });
   
   const [productImages, setProductImages] = useState([]);
+  
+  // Nigeria location fields
+  const [ngState, setNgState] = useState('');
+  const [city, setCity] = useState('');
   const [draftSavedAt, setDraftSavedAt] = useState(null);
   
   // Refs for enhanced functionality
@@ -237,6 +241,10 @@ const VendorProductManager = () => {
         }
       });
       
+      // Nigeria location fields
+      if (ngState) formDataToSend.append('state', ngState);
+      if (city) formDataToSend.append('city', city);
+
       // Add image files
       productImages.forEach(image => {
         if (image.file) {
@@ -996,17 +1004,54 @@ const VendorProductManager = () => {
                   formErrors={formErrors}
                 />
                 
+                {/* Nigeria location fields */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">State (Nigeria)</label>
+                  <select
+                    value={ngState}
+                    onChange={(e) => setNgState(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select State</option>
+                    <option value="Lagos">Lagos</option>
+                    <option value="Abuja">Abuja (FCT)</option>
+                    <option value="Rivers">Rivers</option>
+                    <option value="Oyo">Oyo</option>
+                    <option value="Kano">Kano</option>
+                    <option value="Ogun">Ogun</option>
+                    <option value="Kaduna">Kaduna</option>
+                    <option value="Anambra">Anambra</option>
+                    <option value="Enugu">Enugu</option>
+                    <option value="Delta">Delta</option>
+                    <option value="Edo">Edo</option>
+                    <option value="Imo">Imo</option>
+                    <option value="Akwa Ibom">Akwa Ibom</option>
+                    <option value="Plateau">Plateau</option>
+                    <option value="Others">Other State</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="e.g., Ikeja"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status <span className="text-red-500">*</span>
+                    Publish to Marketplace
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="active">Published</option>
+                    <option value="inactive">Unpublished</option>
                   </select>
                 </div>
                 

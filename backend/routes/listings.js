@@ -67,6 +67,7 @@ router.get('/', async (req, res) => {
       SELECT 
         p.id, p.name AS title, p.description, p.price, p.category,
         p.status, p.created_at,
+        p.state, p.city,
         COALESCE(v.business_name, 'Unknown') AS vendor_name,
         COALESCE(v.location, 'Unknown') AS vendor_location,
         (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = true ORDER BY display_order LIMIT 1) AS cover_image
@@ -93,6 +94,8 @@ router.get('/', async (req, res) => {
       status: r.status || 'active',
       created_at: r.created_at,
       vendor: { name: r.vendor_name, location: r.vendor_location },
+      state: r.state || null,
+      city: r.city || null,
       cover_image: r.cover_image || null,
     }));
 
@@ -141,6 +144,8 @@ router.get('/:id', async (req, res) => {
       status: item.status || 'active',
       created_at: item.created_at,
       vendor: { name: item.vendor_name, location: item.vendor_location },
+      state: item.state || null,
+      city: item.city || null,
       images: imagesRes.rows,
     });
   } catch (err) {

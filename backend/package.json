@@ -8,6 +8,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "migrate:marketplace": "node add-marketplace-columns.js",
+    "migrate:ng-location": "node add-nigeria-location-columns.js",
+    "migrate:indexes": "node add-products-indexes.js",
     "seed:listings": "node seed-listings.js 2000"
   },
   "keywords": [],

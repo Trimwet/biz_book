@@ -282,7 +282,7 @@ const ProductDetails = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <FiMapPin className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">{product.vendor_location}</span>
+                <span className="text-gray-600">{product.city ? `${product.city}, ${product.state || 'Nigeria'}` : (product.state || product.vendor_location)}</span>
               </div>
               {product.vendor_phone && (
                 <div className="flex items-center space-x-2">

@@ -78,7 +78,7 @@ const authenticateVendor = async (req, res, next) => {
 // 🏪 CORE FEATURE: Vendor Product Management - Add Product with Images
 router.post('/vendor/products', authenticateToken, authenticateVendor, upload, processImages, async (req, res) => {
   try {
-    const { name, price, description, category, specifications, stock_quantity } = req.body;
+    const { name, price, description, category, specifications, stock_quantity, state, city } = req.body;
 
     if (!name || !price || !category) {
       return res.status(400).json({ error: 'Required fields: name, price, category', code: 'MISSING_REQUIRED_FIELDS' });
@@ -89,6 +89,8 @@ router.post('/vendor/products', authenticateToken, authenticateVendor, upload, p
     const sanitizedCategory = sanitizeInput(category);
     const numericPrice = parseFloat(price);
     const numericStockQuantity = parseInt(stock_quantity) || 0;
+    const sanitizedState = state ? sanitizeInput(state) : null;
+    const sanitizedCity = city ? sanitizeInput(city) : null;
     
     if (sanitizedName.length < 2 || sanitizedName.length > 200) {
       return res.status(400).json({ error: 'Product name must be between 2 and 200 characters', code: 'INVALID_NAME_LENGTH' });
@@ -130,10 +132,10 @@ router.post('/vendor/products', authenticateToken, authenticateVendor, upload, p
     let productResult;
     try {
       productResult = await pool.query(`
-        INSERT INTO products (name, price, description, category, specifications, vendor_id, stock_quantity, status, sku, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        INSERT INTO products (name, price, description, category, specifications, vendor_id, stock_quantity, status, sku, state, city, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING *
-      `, [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, specifications || null, req.vendorId, numericStockQuantity, 'active', null]);
+      `, [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, specifications || null, req.vendorId, numericStockQuantity, 'active', null, sanitizedState, sanitizedCity]);
     } catch (e) {
       console.warn('INSERT_WITH_STATUS_SKU_FAILED_FALLBACK:', e.code || e.message);
       productResult = await pool.query(`
@@ -328,7 +330,7 @@ router.get('/vendor/products/:id', authenticateToken, authenticateVendor, async 
 router.put('/vendor/products/:id', authenticateToken, authenticateVendor, upload, processImages, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, description, category, specifications, stock_quantity, status, sku } = req.body;
+    const { name, price, description, category, specifications, stock_quantity, status, sku, state, city } = req.body;
 
     if (!name || !price || !category) {
       return res.status(400).json({ error: 'Required fields: name, price, category', code: 'MISSING_REQUIRED_FIELDS' });
@@ -341,6 +343,8 @@ router.put('/vendor/products/:id', authenticateToken, authenticateVendor, upload
     const numericPrice = parseFloat(price);
     const numericStockQuantity = parseInt(stock_quantity) || 0;
     const productStatus = status || 'active';
+    const sanitizedState = state ? sanitizeInput(state) : null;
+    const sanitizedCity = city ? sanitizeInput(city) : null;
     
     if (sanitizedName.length < 2 || sanitizedName.length > 200) {
       return res.status(400).json({ error: 'Product name must be between 2 and 200 characters', code: 'INVALID_NAME_LENGTH' });
@@ -356,16 +360,30 @@ router.put('/vendor/products/:id', authenticateToken, authenticateVendor, upload
       return res.status(404).json({ error: 'Product not found or you do not have permission to edit it.', code: 'PRODUCT_NOT_FOUND' });
     }
 
-    // Update product
-    const result = await pool.query(
-      `UPDATE products
-       SET name = $1, price = $2, description = $3, category = $4, specifications = $5, 
-           stock_quantity = $6, status = $7, sku = $8, updated_at = NOW()
-       WHERE id = $9 AND vendor_id = $10
-       RETURNING *`,
-      [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, 
-       specifications || null, numericStockQuantity, productStatus, sanitizedSku, id, req.vendorId]
-    );
+    // Update product (attempt with state/city; fallback if missing columns)
+    let result;
+    try {
+      result = await pool.query(
+        `UPDATE products
+         SET name = $1, price = $2, description = $3, category = $4, specifications = $5, 
+             stock_quantity = $6, status = $7, sku = $8, state = $9, city = $10, updated_at = NOW()
+         WHERE id = $11 AND vendor_id = $12
+         RETURNING *`,
+        [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, 
+         specifications || null, numericStockQuantity, productStatus, sanitizedSku, sanitizedState, sanitizedCity, id, req.vendorId]
+      );
+    } catch (e) {
+      console.warn('UPDATE_WITH_STATE_CITY_FAILED_FALLBACK:', e.code || e.message);
+      result = await pool.query(
+        `UPDATE products
+         SET name = $1, price = $2, description = $3, category = $4, specifications = $5, 
+             stock_quantity = $6, status = $7, sku = $8, updated_at = NOW()
+         WHERE id = $9 AND vendor_id = $10
+         RETURNING *`,
+        [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, 
+         specifications || null, numericStockQuantity, productStatus, sanitizedSku, id, req.vendorId]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Product not found or you do not have permission to edit it.', code: 'UPDATE_FAILED' });

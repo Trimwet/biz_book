@@ -122,6 +122,23 @@ const ProductDetails = () => {
     }
   };
 
+  const toWhatsAppNumber = (phone) => {
+    if (!phone) return null;
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.startsWith('234')) return digits;
+    if (digits.startsWith('0')) return '234' + digits.slice(1);
+    if (digits.startsWith('00')) return digits.slice(2); // assume already intl
+    if (digits.startsWith('9') && digits.length === 10) return '234' + digits; // naive fallback
+    return digits;
+  };
+
+  const waLink = () => {
+    const num = toWhatsAppNumber(product.vendor_phone);
+    if (!num) return null;
+    const msg = encodeURIComponent(`Hello, I'm interested in "${product.name}" on BIZ BOOK: ${window.location.href}`);
+    return `https://wa.me/${num}?text=${msg}`;
+  };
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -295,7 +312,7 @@ const ProductDetails = () => {
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            <div className="flex space-x-4">
+            <div className="flex flex-wrap gap-3">
               <Button
                 onClick={addToWatchlist}
                 variant={isInWatchlist ? "secondary" : "primary"}
@@ -312,6 +329,20 @@ const ProductDetails = () => {
               <Button onClick={shareProduct} variant="outline">
                 <FiShare2 className="w-4 h-4" />
               </Button>
+              {product.vendor_phone && waLink() && (
+                <a
+                  href={waLink()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 border border-green-600 text-green-700 rounded-md hover:bg-green-50"
+                >
+                  <svg viewBox="0 0 32 32" className="w-4 h-4 mr-2" fill="currentColor" aria-hidden="true">
+                    <path d="M19.11 17.64c-.31-.16-1.82-.9-2.1-1.01-.28-.1-.49-.16-.7.16-.21.31-.8 1-.98 1.21-.18.21-.36.23-.67.08-.31-.16-1.31-.48-2.5-1.54-.92-.82-1.54-1.84-1.72-2.15-.18-.31-.02-.48.14-.64.14-.14.31-.36.47-.54.16-.18.21-.31.31-.52.1-.21.05-.39-.03-.54-.08-.16-.7-1.69-.96-2.32-.25-.6-.5-.52-.7-.53h-.6c-.21 0-.54.08-.82.39-.28.31-1.07 1.05-1.07 2.56s1.1 2.97 1.26 3.17c.16.21 2.18 3.33 5.28 4.66.74.32 1.31.51 1.76.66.74.23 1.42.2 1.96.12.6-.09 1.82-.74 2.08-1.45.26-.71.26-1.31.18-1.45-.08-.14-.28-.23-.59-.39z"/>
+                    <path d="M26.31 5.69C23.47 2.85 19.88 1.33 16 1.33 8.27 1.33 2 7.6 2 15.33c0 2.48.65 4.9 1.89 7.04L2 30.67l8.51-1.75c2.08 1.14 4.43 1.74 6.79 1.74h0c7.73 0 14-6.27 14-14 0-3.88-1.52-7.47-4.36-10.31zM16 28c-2.17 0-4.29-.58-6.16-1.67l-.44-.26-5.05 1.04 1.04-4.93-.29-.5C3.04 19.5 2.4 17.44 2.4 15.33 2.4 8.35 8.35 2.4 15.33 2.4c3.45 0 6.69 1.34 9.13 3.79 2.44 2.45 3.79 5.68 3.79 9.13C28.24 21.65 22.29 27.6 15.31 27.6H16z"/>
+                  </svg>
+                  WhatsApp Vendor
+                </a>
+              )}
             </div>
 
             <div className="flex items-center space-x-4 text-sm text-gray-600">

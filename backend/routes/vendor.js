@@ -204,7 +204,7 @@ router.get('/vendor/products', authenticateToken, authenticateVendor, async (req
   try {
     console.log('📦 Fetching products for vendorId:', req.vendorId);
     
-    const { page = 1, limit = 20, category, search, sort_by = 'created_at', sort_order = 'desc' } = req.query;
+    const { page = 1, limit = 20, category, search, state, city, sort_by = 'created_at', sort_order = 'desc' } = req.query;
 
     const numericPage = Math.max(1, parseInt(page));
     const numericLimit = Math.min(100, Math.max(1, parseInt(limit)));
@@ -228,6 +228,18 @@ router.get('/vendor/products', authenticateToken, authenticateVendor, async (req
     if (search) {
       whereClause += ` AND p.name ILIKE $${paramIndex}`;
       params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (state) {
+      whereClause += ` AND p.state ILIKE $${paramIndex}`;
+      params.push(`%${state}%`);
+      paramIndex++;
+    }
+
+    if (city) {
+      whereClause += ` AND p.city ILIKE $${paramIndex}`;
+      params.push(`%${city}%`);
       paramIndex++;
     }
 
@@ -274,6 +286,18 @@ router.get('/vendor/products', authenticateToken, authenticateVendor, async (req
     if (search) {
       countQuery += ` AND p.name ILIKE $${countParamIndex}`;
       countParams.push(`%${search}%`);
+      countParamIndex++;
+    }
+
+    if (state) {
+      countQuery += ` AND p.state ILIKE $${countParamIndex}`;
+      countParams.push(`%${state}%`);
+      countParamIndex++;
+    }
+
+    if (city) {
+      countQuery += ` AND p.city ILIKE $${countParamIndex}`;
+      countParams.push(`%${city}%`);
       countParamIndex++;
     }
 

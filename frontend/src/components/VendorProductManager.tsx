@@ -59,6 +59,8 @@ const VendorProductManager = () => {
     search: '',
     category: '',
     status: '',
+    state: '',
+    city: '',
     sort_by: 'created_at',
     sort_order: 'desc',
     page: 1,
@@ -430,6 +432,8 @@ const VendorProductManager = () => {
         sku: product.sku || '',
         status: product.status || 'active'
       });
+      setNgState(product.state || '');
+      setCity(product.city || '');
       
       const existingImages = product.images || [];
       setProductImages(existingImages.map(img => ({
@@ -774,7 +778,7 @@ const VendorProductManager = () => {
             )}
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Search Products
@@ -833,6 +837,41 @@ const VendorProductManager = () => {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+              <select
+                value={filters.state}
+                onChange={(e) => handleFilterChange('state', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All States</option>
+                <option value="Lagos">Lagos</option>
+                <option value="Abuja">Abuja (FCT)</option>
+                <option value="Rivers">Rivers</option>
+                <option value="Oyo">Oyo</option>
+                <option value="Kano">Kano</option>
+                <option value="Ogun">Ogun</option>
+                <option value="Kaduna">Kaduna</option>
+                <option value="Anambra">Anambra</option>
+                <option value="Enugu">Enugu</option>
+                <option value="Delta">Delta</option>
+                <option value="Edo">Edo</option>
+                <option value="Imo">Imo</option>
+                <option value="Akwa Ibom">Akwa Ibom</option>
+                <option value="Plateau">Plateau</option>
+                <option value="Others">Other State</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+              <input
+                type="text"
+                value={filters.city}
+                onChange={(e) => handleFilterChange('city', e.target.value)}
+                placeholder="e.g., Ikeja"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
             </div>
             
             <div>
@@ -1137,6 +1176,7 @@ const VendorProductManager = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Product</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Price</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Stock</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Location</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Performance</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Actions</th>
@@ -1165,6 +1205,9 @@ const VendorProductManager = () => {
                       <div className="text-sm text-gray-500">{product.category}</div>
                       <div className="text-sm font-medium text-gray-900 mt-1">
                         ₦{(product.price || 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {product.city ? `${product.city}, ${product.state || 'Nigeria'}` : (product.state || '—')}
                       </div>
                     </div>
                   </div>
@@ -1282,6 +1325,9 @@ const VendorProductManager = () => {
                           }`}>
                             {(product.stock_quantity || 0) > 0 ? `${product.stock_quantity} units` : 'Out of stock'}
                           </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {product.city ? `${product.city}, ${product.state || 'Nigeria'}` : (product.state || '—')}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

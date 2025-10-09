@@ -323,22 +323,20 @@ router.get('/browse', async (req, res) => {
         p.*,
         v.business_name as vendor_name,
         COALESCE(v.location, 'Location not specified') as vendor_location,
-        COALESCE(vp.vendor_profile_id, v.id) as vendor_id,
+        v.id as vendor_id,
         json_agg(
           json_build_object(
             'id', pi.id,
             'image_url', pi.image_url,
-            'thumbnail_url', pi.thumbnail_url,
             'is_primary', pi.is_primary,
-            'sort_order', pi.sort_order
-          )
+            'display_order', pi.display_order
+          ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL) as images
       FROM products p
-      LEFT JOIN vendors v ON p.vendor_id = v.user_id
-      LEFT JOIN vendor_profiles vp ON vp.user_id = v.user_id
+      LEFT JOIN vendors v ON p.vendor_id = v.id
       LEFT JOIN product_images pi ON p.id = pi.product_id
       WHERE ${whereClause}
-      GROUP BY p.id, v.business_name, v.location, vp.vendor_profile_id, v.id
+      GROUP BY p.id, v.business_name, v.location, v.id
       ORDER BY p.${finalSortBy} ${finalSortOrder}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -348,14 +346,23 @@ router.get('/browse', async (req, res) => {
     const result = await pool.query(query, params);
 
     // Get total count for pagination
-    const countQuery = `SELECT COUNT(*) as total FROM products p WHERE ${whereClause}`;
-    const countParams = category ? [category] : [];
-    const countResult = await pool.query(countQuery, countParams);
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM products p
+      WHERE ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, params.slice(0, -2));
     const totalProducts = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(totalProducts / limitNum);
 
+    // Process products to format images properly
+    const products = result.rows.map(product => ({
+      ...product,
+      images: product.images && product.images[0] !== null ? product.images : []
+    }));
+
     res.json({
-      products: result.rows,
+      products: products,
       pagination: {
         current_page: pageNum,
         total_pages: totalPages,
@@ -371,7 +378,7 @@ router.get('/browse', async (req, res) => {
     console.error('❌ Browse products error:', err);
     res.status(500).json({
       error: 'Unable to browse products',
-      code: 'BROWSE_ERROR'
+      code: 'BROWSE_PRODUCTS_FAILED'
     });
   }
 });
@@ -450,10 +457,9 @@ router.get('/vendor/:vendorId', async (req, res) => {
           json_build_object(
             'id', pi.id,
             'image_url', pi.image_url,
-            'thumbnail_url', pi.thumbnail_url,
             'is_primary', pi.is_primary,
-            'sort_order', pi.sort_order
-          )
+            'display_order', pi.display_order
+          ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL) as images
       FROM products p
       LEFT JOIN vendors v ON p.vendor_id = v.id
@@ -794,130 +800,5 @@ router.post('/compare', async (req, res) => {
   }
 });
 
-// 🛍️ CORE FEATURE: Browse All Products (Shopper Product Feed)
-router.get('/browse', async (req, res) => {
-  try {
-    const { category, sortBy = 'created_at', sortOrder = 'DESC', page = 1, limit = 20 } = req.query;
-
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const offset = (pageNum - 1) * limitNum;
-
-    // 📊 Demo mode: Use mock data if database not connected
-    if (!pool.dbConnected) {
-      let mockBrowseProducts = [
-        { id: 1, name: 'iPhone 15 Pro', price: 1500000, category: 'Electronics', description: 'Latest iPhone with amazing features', vendor_name: 'TechHub Store', vendor_location: 'Lagos', created_at: '2024-01-15', stock: 5, status: 'active' },
-        { id: 2, name: 'Samsung Galaxy S24', price: 1200000, category: 'Electronics', description: 'Powerful Android smartphone', vendor_name: 'MobileWorld', vendor_location: 'Abuja', created_at: '2024-01-14', stock: 8, status: 'active' },
-        { id: 3, name: 'Nike Air Max', price: 45000, category: 'Fashion', description: 'Comfortable running shoes', vendor_name: 'SportCenter', vendor_location: 'Lagos', created_at: '2024-01-13', stock: 15, status: 'active' },
-        { id: 4, name: 'MacBook Pro M3', price: 2500000, category: 'Computers & Laptops', description: 'Professional laptop for creators', vendor_name: 'Apple Store', vendor_location: 'Abuja', created_at: '2024-01-12', stock: 3, status: 'active' },
-        { id: 5, name: 'Sony WH-1000XM5', price: 180000, category: 'Electronics', description: 'Premium noise-canceling headphones', vendor_name: 'AudioTech', vendor_location: 'Lagos', created_at: '2024-01-11', stock: 10, status: 'active' },
-        { id: 6, name: 'Adidas Ultraboost', price: 55000, category: 'Fashion', description: 'High-performance running shoes', vendor_name: 'SportCenter', vendor_location: 'Kano', created_at: '2024-01-10', stock: 12, status: 'active' }
-      ];
-
-      if (category) {
-        mockBrowseProducts = mockBrowseProducts.filter(p => p.category === category);
-      }
-
-      const totalProducts = mockBrowseProducts.length;
-      const totalPages = Math.ceil(totalProducts / limitNum);
-      const paginatedProducts = mockBrowseProducts.slice(offset, offset + limitNum);
-
-      return res.json({
-        products: paginatedProducts,
-        pagination: {
-          current_page: pageNum,
-          total_pages: totalPages,
-          total_products: totalProducts,
-          per_page: limitNum,
-          has_next: pageNum < totalPages,
-          has_prev: pageNum > 1
-        },
-        success: true
-      });
-    }
-
-    // Database mode: Get all products with vendor information
-    let whereClause = "p.status = 'active'";
-    let params = [];
-    let paramIndex = 1;
-
-    if (category) {
-      whereClause += ` AND p.category = $${paramIndex}`;
-      params.push(category);
-      paramIndex++;
-    }
-
-    // Sort validation
-    const validSortFields = ['price', 'created_at', 'name'];
-    const validSortOrders = ['ASC', 'DESC'];
-    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'created_at';
-    const finalSortOrder = validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
-
-    const query = `
-      SELECT
-        p.*,
-        v.business_name as vendor_name,
-        COALESCE(v.location, 'Location not specified') as vendor_location,
-        COALESCE(vp.vendor_profile_id, v.id) as vendor_id,
-        json_agg(
-          json_build_object(
-            'id', pi.id,
-            'image_url', pi.image_url,
-            'thumbnail_url', pi.thumbnail_url,
-            'is_primary', pi.is_primary,
-            'sort_order', pi.sort_order
-          )
-        ) FILTER (WHERE pi.id IS NOT NULL) as images
-      FROM products p
-      LEFT JOIN vendors v ON p.vendor_id = v.user_id
-      LEFT JOIN vendor_profiles vp ON vp.user_id = v.user_id
-      LEFT JOIN product_images pi ON p.id = pi.product_id
-      WHERE ${whereClause}
-      GROUP BY p.id, v.business_name, v.location, vp.vendor_profile_id, v.id
-      ORDER BY p.${finalSortBy} ${finalSortOrder}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-
-    params.push(limitNum, offset);
-
-    const result = await pool.query(query, params);
-
-    // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM products p
-      WHERE ${whereClause}
-    `;
-    const countResult = await pool.query(countQuery, params.slice(0, -2));
-    const totalProducts = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(totalProducts / limitNum);
-
-    // Process products to format images properly
-    const products = result.rows.map(product => ({
-      ...product,
-      images: product.images && product.images[0] !== null ? product.images : []
-    }));
-
-    res.json({
-      products: products,
-      pagination: {
-        current_page: pageNum,
-        total_pages: totalPages,
-        total_products: totalProducts,
-        per_page: limitNum,
-        has_next: pageNum < totalPages,
-        has_prev: pageNum > 1
-      },
-      success: true
-    });
-
-  } catch (err) {
-    console.error('❌ Browse products error:', err);
-    res.status(500).json({
-      error: 'Unable to browse products',
-      code: 'BROWSE_PRODUCTS_FAILED'
-    });
-  }
-});
 
 module.exports = router;

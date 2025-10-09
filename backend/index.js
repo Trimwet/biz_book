@@ -18,6 +18,8 @@
  * - Database connection security
  */
 
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -28,7 +30,6 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const validator = require('validator');
-require('dotenv').config();
 
 // backend/index.js
 const authRoutes = require('./routes/auth');
@@ -113,7 +114,7 @@ const authLimiter = rateLimit({
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs for general endpoints
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 100 in production, 1000 in development
   message: {
     error: 'Too many requests. Please try again later.',
     code: 'RATE_LIMIT_EXCEEDED'
@@ -122,7 +123,7 @@ const generalLimiter = rateLimit({
 
 // SECURITY: CORS configuration - restrict to specific origins in production
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']

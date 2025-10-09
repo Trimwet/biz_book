@@ -74,7 +74,22 @@ async function migrate() {
         ALTER TABLE products ADD COLUMN vendor_id INTEGER REFERENCES vendors(id) ON DELETE CASCADE;
         CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id);
       END IF;
-    END $$;
+
+      -- Add sku and status columns
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='products' AND column_name='sku'
+      ) THEN
+        ALTER TABLE products ADD COLUMN sku TEXT;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='products' AND column_name='status'
+      ) THEN
+        ALTER TABLE products ADD COLUMN status TEXT DEFAULT 'active';
+      END IF;
+    END $;
   `);
 
   console.log('✅ products table migrated');

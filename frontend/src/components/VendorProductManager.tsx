@@ -47,7 +47,12 @@ const VendorProductManager = () => {
   const [isValidating, setIsValidating] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vendor_show_guide');
+      return saved !== 'false';
+    } catch { return true; }
+  });
   
   // Enhanced filters with search debouncing
   const [filters, setFilters] = useState({
@@ -660,7 +665,7 @@ const VendorProductManager = () => {
               <div className="flex gap-2">
                 <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700">Add Product</Button>
                 <Button onClick={() => navigate('/vendor/listings/new')} variant="outline">Quick Listing</Button>
-                <button onClick={() => setShowGuide(false)} className="text-sm text-gray-500 hover:text-gray-700">Hide</button>
+                <button onClick={() => { setShowGuide(false); try { localStorage.setItem('vendor_show_guide', 'false'); } catch {} }} className="text-sm text-gray-500 hover:text-gray-700">Hide</button>
               </div>
             </div>
           </Card>

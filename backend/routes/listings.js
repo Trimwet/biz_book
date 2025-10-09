@@ -152,16 +152,40 @@ router.get('/:id', async (req, res) => {
 // POST /api/listings
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { title, description, category, price } = req.body || {};
+    const { title, description, category, price, condition, location_lat, location_lng } = req.body || {};
     if (!title || typeof title !== 'string' || !price) {
       return res.status(400).json({ error: 'title and price are required' });
     }
-    const result = await pool.query(
-      `INSERT INTO products (name, description, category, price, status)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id`,
-      [sanitize(title), sanitize(description || ''), sanitize(category || null), parseFloat(price), 'active']
-    );
+
+    let result;
+    try {
+      // Attempt to insert with marketplace columns
+      result = await pool.query(
+        `INSERT INTO products (name, description, category, price, status, condition, location_lat, location_lng)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         RETURNING id`,
+        [
+          sanitize(title),
+          sanitize(description || ''),
+          sanitize(category || null),
+          parseFloat(price),
+          'active',
+          condition ? sanitize(condition) : null,
+          location_lat != null ? Number(location_lat) : null,
+          location_lng != null ? Number(location_lng) : null,
+        ]
+      );
+    } catch (e) {
+      console.warn('LISTING_INSERT_WITH_MARKETPLACE_COLS_FAILED_FALLBACK:', e.code || e.message);
+      // Fallback without optional columns
+      result = await pool.query(
+        `INSERT INTO products (name, description, category, price, status)
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING id`,
+        [sanitize(title), sanitize(description || ''), sanitize(category || null), parseFloat(price), 'active']
+      );
+    }
+
     return res.status(201).json({ id: result.rows[0].id });
   } catch (err) {
     console.error('LISTING_CREATE_ERROR:', err.message);

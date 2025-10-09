@@ -79,11 +79,11 @@ export async function getListing(id: number): Promise<ListingDetail> {
   };
 }
 
-export async function createListing(body: { title: string; description?: string; category?: string; price: number; token: string }) {
+export async function createListing(body: { title: string; description?: string; category?: string; price: number; token: string; condition?: string; state?: string }) {
   const res = await fetch(`${config.API_BASE_URL}/api/listings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${body.token}` },
-    body: JSON.stringify({ title: body.title, description: body.description, category: body.category, price: body.price })
+    body: JSON.stringify({ title: body.title, description: body.description, category: body.category, price: body.price, condition: body.condition })
   });
   if (!res.ok) throw new Error('Failed to create listing');
   return res.json();

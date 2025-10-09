@@ -126,12 +126,22 @@ router.post('/vendor/products', authenticateToken, authenticateVendor, upload, p
       });
     }
     
-    // Insert product
-    const productResult = await pool.query(`
-      INSERT INTO products (name, price, description, category, specifications, vendor_id, stock_quantity, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-      RETURNING *
-    `, [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, specifications || null, req.vendorId, numericStockQuantity]);
+    // Insert product (attempt with status and sku; fallback if columns missing)
+    let productResult;
+    try {
+      productResult = await pool.query(`
+        INSERT INTO products (name, price, description, category, specifications, vendor_id, stock_quantity, status, sku, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        RETURNING *
+      `, [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, specifications || null, req.vendorId, numericStockQuantity, 'active', null]);
+    } catch (e) {
+      console.warn('INSERT_WITH_STATUS_SKU_FAILED_FALLBACK:', e.code || e.message);
+      productResult = await pool.query(`
+        INSERT INTO products (name, price, description, category, specifications, vendor_id, stock_quantity, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING *
+      `, [sanitizedName, numericPrice, sanitizedDescription, sanitizedCategory, specifications || null, req.vendorId, numericStockQuantity]);
+    }
     
     const product = productResult.rows[0];
     

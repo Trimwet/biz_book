@@ -1278,6 +1278,7 @@ const VendorProductManager = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Product</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Price</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Stock</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Location</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Performance</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Actions</th>

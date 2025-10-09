@@ -359,7 +359,7 @@ const ProductSearch = () => {
         )}
 
         {/* Empty State */}
-        {searchResults.length === 0 && !loading && (
+        {searchResults.length === 0 && !loading && !searchQuery && (
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Start Your Search</h3>

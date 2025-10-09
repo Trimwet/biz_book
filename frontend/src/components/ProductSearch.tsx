@@ -7,6 +7,8 @@ import config from '../config';
 const ProductSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ListingItem[]>([]);
+  const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; total_pages: number } | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
@@ -17,28 +19,33 @@ const ProductSearch = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  const fetchResults = async (nextPage: number) => {
     if (!searchQuery.trim()) return;
-
     setLoading(true);
     try {
-      const { items } = await listListings({
+      const { items, pagination } = await listListings({
         query: searchQuery,
         category: filters.category || undefined,
         minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
         maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
-        page: 1,
+        page: nextPage,
         limit: 20,
         sortBy: 'created_at',
         sortOrder: 'DESC'
       });
       setSearchResults(items);
+      setPagination(pagination || null);
+      setPage(nextPage);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    await fetchResults(1);
   };
 
   const addToWatchlist = () => {
@@ -203,16 +210,33 @@ const ProductSearch = () => {
           <div className="space-y-6 fade-in">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <h2 className="text-xl font-bold text-gray-900">
-                Search Results ({searchResults.length} listings found)
+                {pagination ? (
+                  <>Search Results ({pagination.total} listings found)</>
+                ) : (
+                  <>Search Results</>
+                )}
               </h2>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Sort by:</span>
-                <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  <option>Price: Low to High</option>
-                  <option>Price: High to Low</option>
-                  <option>Rating</option>
-                  <option>Reviews</option>
-                </select>
+                <span className="text-sm text-gray-600">Page</span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                    disabled={!pagination || page <= 1}
+                    onClick={() => fetchResults(page - 1)}
+                  >
+                    Prev
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {pagination ? `${page} / ${pagination.total_pages}` : page}
+                  </span>
+                  <button
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                    disabled={!pagination || page >= (pagination?.total_pages || 1)}
+                    onClick={() => fetchResults(page + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
 

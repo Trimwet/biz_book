@@ -25,16 +25,21 @@ router.get('/', async (req, res) => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
     const offset = (pageNum - 1) * limitNum;
 
-    const allowedSort = ['price', 'created_at', 'name'];
+    const allowedSort = ['price', 'created_at', 'name', 'relevance'];
     const finalSortBy = allowedSort.includes(sortBy) ? sortBy : 'created_at';
     const finalSortOrder = (sortOrder || '').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const clauses = [];
     const params = [];
 
+    let useFTS = false;
+    let tsParamIndex = 0;
     if (q && q.trim().length >= 2) {
-      params.push(`%${sanitize(q)}%`);
-      clauses.push(`(p.name ILIKE $${params.length} OR p.description ILIKE $${params.length})`);
+      // Use full-text search for better relevance and index usage
+      useFTS = true;
+      params.push(sanitize(q));
+      tsParamIndex = params.length;
+      clauses.push(`to_tsvector('simple', coalesce(p.name,'') || ' ' || coalesce(p.description,'')) @@ plainto_tsquery('simple', $${tsParamIndex})`);
     }
     if (category) {
       params.push(sanitize(category));
@@ -51,6 +56,13 @@ router.get('/', async (req, res) => {
 
     const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
+    // If using FTS, compute rank for ordering by relevance
+    const rankSelect = useFTS ? `, ts_rank(to_tsvector('simple', coalesce(p.name,'') || ' ' || coalesce(p.description,'')), plainto_tsquery('simple', $${tsParamIndex})) AS rank` : '';
+
+    const orderSql = useFTS
+      ? `ORDER BY rank DESC, p.created_at DESC`
+      : `ORDER BY p.${finalSortBy} ${finalSortOrder}`;
+
     const sql = `
       SELECT 
         p.id, p.name AS title, p.description, p.price, p.category,
@@ -58,10 +70,11 @@ router.get('/', async (req, res) => {
         COALESCE(v.business_name, 'Unknown') AS vendor_name,
         COALESCE(v.location, 'Unknown') AS vendor_location,
         (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = true ORDER BY display_order LIMIT 1) AS cover_image
+        ${rankSelect}
       FROM products p
       LEFT JOIN vendors v ON p.vendor_id = v.id
       ${whereSql}
-      ORDER BY p.${finalSortBy} ${finalSortOrder}
+      ${orderSql}
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
 

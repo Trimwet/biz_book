@@ -116,6 +116,16 @@ function MobileMenu({ isOpen, toggleMenu }) {
                         </svg>
                         <span>Analytics</span>
                       </Link>
+                      <Link 
+                        to="/vendor/listings/new" 
+                        onClick={toggleMenu} 
+                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      >
+                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>New Listing</span>
+                      </Link>
                     </>
                   )}
                   
@@ -670,6 +680,16 @@ function Navigation() {
                         }`}
                       >
                         Analytics
+                      </Link>
+                      <Link 
+                        to="/vendor/listings/new" 
+                        className={`text-sm font-medium transition-colors ${
+                          isActivePage('/vendor/listings/new')
+                            ? 'text-blue-600'
+                            : 'text-gray-700 hover:text-gray-900'
+                        }`}
+                      >
+                        New Listing
                       </Link>
                     </>
                   )}

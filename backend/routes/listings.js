@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     const allowedSort = ['price', 'created_at', 'name', 'relevance'];
-    const finalSortBy = allowedSort.includes(sortBy) ? sortBy : 'created_at';
+    let chosenSort = allowedSort.includes(sortBy) ? sortBy : 'created_at';
     const finalSortOrder = (sortOrder || '').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const clauses = [];
@@ -63,9 +63,14 @@ router.get('/', async (req, res) => {
     // If using FTS, compute rank for ordering by relevance
     const rankSelect = useFTS ? `, ts_rank(to_tsvector('simple', coalesce(p.name,'') || ' ' || coalesce(p.description,'')), plainto_tsquery('simple', $${tsParamIndex})) AS rank` : '';
 
+    // If no FTS query and 'relevance' was requested, fall back to created_at
+    if (!useFTS && chosenSort === 'relevance') {
+      chosenSort = 'created_at';
+    }
+
     const orderSql = useFTS
       ? `ORDER BY rank DESC, p.created_at DESC`
-      : `ORDER BY p.${finalSortBy} ${finalSortOrder}`;
+      : `ORDER BY p.${chosenSort} ${finalSortOrder}`;
 
     const sql = `
       SELECT 

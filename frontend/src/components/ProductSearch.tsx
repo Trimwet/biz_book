@@ -23,7 +23,6 @@ const ProductSearch = () => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   const fetchResults = async (nextPage: number) => {
-    if (!searchQuery.trim()) return;
     setLoading(true);
     try {
       const { items, pagination } = await listListings({
@@ -51,6 +50,12 @@ const ProductSearch = () => {
     e.preventDefault();
     await fetchResults(1);
   };
+
+  // Load initial listings for shoppers (latest)
+  React.useEffect(() => {
+    fetchResults(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addToWatchlist = () => {
     // Mock add to watchlist

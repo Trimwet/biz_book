@@ -21,6 +21,7 @@ const ProductSearch = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'relevance' | 'created_at' | 'price'>('relevance');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [pageSize, setPageSize] = useState(20);
 
   const fetchResults = async (nextPage: number) => {
     setLoading(true);
@@ -32,7 +33,7 @@ const ProductSearch = () => {
         minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
         maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
         page: nextPage,
-        limit: 20,
+        limit: pageSize,
         sortBy,
         sortOrder
       });
@@ -272,9 +273,23 @@ const ProductSearch = () => {
                       <option value="ASC">Asc</option>
                     </select>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Page</span>
-                    <button
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">Rows</span>
+                      <select
+                        className="px-2 py-1 border rounded text-sm"
+                        value={pageSize}
+                        onChange={(e) => { setPageSize(parseInt(e.target.value as any)); fetchResults(1); }}
+                      >
+                        <option value={12}>12</option>
+                        <option value={20}>20</option>
+                        <option value={40}>40</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">Page</span>
+                      <button
                       className="px-3 py-1 border rounded disabled:opacity-50"
                       disabled={!pagination || page <= 1}
                       onClick={() => fetchResults(page - 1)}

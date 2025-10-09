@@ -286,6 +286,7 @@ const ProductSearch = () => {
                   >
                     Next
                   </button>
+                  </div>
                 </div>
               </div>
             </div>

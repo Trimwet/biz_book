@@ -24,7 +24,7 @@ import EnhancedProductComparison from './components/EnhancedProductComparison';
 import ProductBrowse from './components/ProductBrowse';
 import CustomerReviews from './components/CustomerReviews';
 import Logo from './components/Logo';
-import ListingForm from './components/ListingForm';
+import ComingSoon from './components/ComingSoon';
 
 
 
@@ -124,7 +124,7 @@ function MobileMenu({ isOpen, toggleMenu }) {
                         <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        <span>New Listing</span>
+                        <span>New Listing (Soon)</span>
                       </Link>
                     </>
                   )}
@@ -689,7 +689,7 @@ function Navigation() {
                             : 'text-gray-700 hover:text-gray-900'
                         }`}
                       >
-                        New Listing
+                        New Listing (Soon)
                       </Link>
                     </>
                   )}
@@ -841,7 +841,7 @@ function App() {
           <Route path="/vendor/sales" element={<VendorSalesReport />} />
           <Route path="/browse" element={<ProductBrowse />} />
           <Route path="/vendor/:vendorId/products" element={<ProductBrowse />} />
-          <Route path="/vendor/listings/new" element={<ListingForm />} />
+          <Route path="/vendor/listings/new" element={<ComingSoon />} />
           {/* Vendor Reviews Dashboard */}
           <Route path="/vendor/reviews" element={
             <div className="max-w-6xl mx-auto p-6">

@@ -1,0 +1,21 @@
+{
+  "$id": "schemas/listing.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Listing",
+  "type": "object",
+  "required": ["title", "price"],
+  "properties": {
+    "id": { "type": "integer" },
+    "product_id": { "type": ["integer", "null"] },
+    "title": { "type": "string", "minLength": 2 },
+    "description": { "type": ["string", "null"] },
+    "category": { "type": ["string", "null"] },
+    "price": { "type": "number", "minimum": 0 },
+    "status": { "type": ["string", "null"], "enum": ["active", "paused", "archived", "draft", "published", null] },
+    "location_lat": { "type": ["number", "null"] },
+    "location_lng": { "type": ["number", "null"] },
+    "state": { "type": ["string", "null"] },
+    "city": { "type": ["string", "null"] },
+    "created_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

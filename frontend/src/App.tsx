@@ -24,10 +24,35 @@ import EnhancedProductComparison from './components/EnhancedProductComparison';
 import ProductBrowse from './components/ProductBrowse';
 import CustomerReviews from './components/CustomerReviews';
 import Logo from './components/Logo';
-import ComingSoon from './components/ComingSoon';
-import { RequireVendor, RequireShopper } from './routes/guards';
+import LandingPage from './components/LandingPage';
+import { RequireVendor, RequireShopper, GuestOnly, GuestOrAllowLanding } from './routes/guards';
+import VendorChats from './components/VendorChats';
+import { ChatProvider, useChat } from './contexts/ChatContext';
+import CommandPalette from './components/ui/CommandPalette';
+import BackendBanner from './components/BackendBanner';
 
 
+
+function VendorChatsLink() {
+  const location = useLocation();
+  const { conversations } = useChat();
+  const totalUnread = Object.values(conversations).reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0);
+  return (
+    <Link 
+      to="/vendor/chats" 
+      className={`relative text-sm font-medium transition-colors ${
+        location.pathname.startsWith('/vendor/chats') ? 'text-blue-600' : 'text-gray-700 hover:text-gray-900'
+      }`}
+    >
+      Chats
+      {totalUnread > 0 && (
+        <span className="absolute -top-2 -right-3 inline-flex items-center justify-center text-xs font-semibold text-white bg-red-600 rounded-full h-5 min-w-[1.25rem] px-1">
+          {totalUnread > 99 ? '99+' : totalUnread}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 // Mobile Menu Component with responsive detection
 function MobileMenu({ isOpen, toggleMenu }) {
@@ -118,14 +143,14 @@ function MobileMenu({ isOpen, toggleMenu }) {
                         <span>Analytics</span>
                       </Link>
                       <Link 
-                        to="/vendor/listings/new" 
+                        to="/vendor/chats" 
                         onClick={toggleMenu} 
                         className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                       >
                         <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V6a2 2 0 012-2h8l6 6v8a2 2 0 01-2 2z" />
                         </svg>
-                        <span>New Listing (Soon)</span>
+                        <span>Chats</span>
                       </Link>
                     </>
                   )}
@@ -273,12 +298,21 @@ function MobileMenu({ isOpen, toggleMenu }) {
 function HomePage() {
   const { user } = useUser();
   const navigate = useNavigate();
+  const [homeQuery, setHomeQuery] = useState('');
+  const goSearch = () => {
+    const q = homeQuery.trim();
+    if (q.length > 0) navigate(`/search?query=${encodeURIComponent(q)}`);
+    else navigate('/search');
+  };
+  const trending = ['Electronics', 'Phones', 'Appliances', 'Fashion', 'Computers'];
 
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-20">
+      <section className="relative bg-white overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-[520px] h-[520px] rounded-full bg-blue-100 blur-3xl opacity-50 pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-indigo-100 blur-3xl opacity-50 pointer-events-none" />
+        <div className="max-w-6xl mx-auto px-6 py-20 relative">
           <div className="text-center">
             <div className="flex justify-center mb-8">
               <Logo size="xlarge" />
@@ -297,7 +331,7 @@ function HomePage() {
                 onClick={() => navigate(user ? (user.user_type === 'vendor' ? '/vendor/dashboard' : '/shopper/dashboard') : '/signup')}
                 className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
-                {user ? 'Go to Dashboard' : 'Start Your Journey'}
+                {user ? 'Go to Dashboard' : 'Get Started'}
               </button>
               <button
                 onClick={() => navigate('/browse')}
@@ -306,16 +340,46 @@ function HomePage() {
                 Explore Marketplace
               </button>
             </div>
+
+            {/* Hero inline search */}
+            <div className="mt-8 max-w-2xl mx-auto">
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+                <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                <input
+                  className="flex-1 outline-none py-2 text-gray-900 placeholder-gray-400"
+                  placeholder="Search products, vendors, categories…"
+                  value={homeQuery}
+                  onChange={(e) => setHomeQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') goSearch(); }}
+                />
+                <button onClick={goSearch} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-black">Search</button>
+              </div>
+            </div>
+
+            {/* Trending categories */}
+            <div className="mt-6 flex flex-wrap gap-2 justify-center">
+              {trending.map((c) => (
+                <button
+                  key={c}
+                  className="px-3 py-1.5 rounded-full border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => navigate(`/search?query=${encodeURIComponent(c)}`)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Trust Indicators */}
-      <section className="bg-gray-50 py-12">
+      <section className="bg-gray-50 py-8">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">
+              <div className="text-3xl font-bold text-blue-600 mb-1">
                 <AnimatedCounter target={5000} duration={2000} />+
               </div>
               <p className="text-gray-700 font-medium">Verified Products</p>
@@ -340,7 +404,7 @@ function HomePage() {
       </section>
 
       {/* Dual Value Proposition */}
-      <section className="py-20 bg-white">
+      <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -351,9 +415,9 @@ function HomePage() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-12">
+          <div className="grid md:grid-cols-2 gap-10">
             {/* For Shoppers */}
-            <div className="bg-blue-50 border border-blue-100 p-8 rounded-xl">
+            <div className="bg-blue-50/60 border border-blue-100 p-8 rounded-xl">
               <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mb-6">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -401,7 +465,7 @@ function HomePage() {
             </div>
             
             {/* For Vendors */}
-            <div className="bg-green-50 border border-green-100 p-8 rounded-xl">
+            <div className="bg-green-50/60 border border-green-100 p-8 rounded-xl">
               <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center mb-6">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -452,7 +516,7 @@ function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-12 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -682,16 +746,6 @@ function Navigation() {
                       >
                         Analytics
                       </Link>
-                      <Link 
-                        to="/vendor/listings/new" 
-                        className={`text-sm font-medium transition-colors ${
-                          isActivePage('/vendor/listings/new')
-                            ? 'text-blue-600'
-                            : 'text-gray-700 hover:text-gray-900'
-                        }`}
-                      >
-                        New Listing (Soon)
-                      </Link>
                     </>
                   )}
                   
@@ -760,6 +814,9 @@ function Navigation() {
             <div className="hidden md:flex items-center space-x-4">
               {user ? (
                 <>
+                  {user.user_type === 'vendor' && (
+                    <VendorChatsLink />
+                  )}
                   {/* Profile */}
                   <Link 
                     to="/profile" 
@@ -817,23 +874,30 @@ function Navigation() {
 
 function App() {
   return (
-    <div className="App">
-      <Navigation />
-      
-      <main id="main-content">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/signup" element={<SignupChoice />} />
-          <Route path="/signup/vendor" element={<VendorSignup />} />
-          <Route path="/signup/shopper" element={<ShopperSignup />} />
-          <Route path="/login" element={<Login />} />
+    <ChatProvider>
+      <div className="App">
+        <Navigation />
+        <BackendBanner />
+        <CommandPalette />
+        
+        <main id="main-content">
+          <Routes>
+          <Route element={<GuestOrAllowLanding />}>
+            <Route path="/" element={<LandingPage />} />
+          </Route>
+          <Route element={<GuestOnly />}>
+            <Route path="/signup" element={<SignupChoice />} />
+            <Route path="/signup/vendor" element={<VendorSignup />} />
+            <Route path="/signup/shopper" element={<ShopperSignup />} />
+            <Route path="/login" element={<Login />} />
+          </Route>
           <Route element={<RequireVendor />}>
             <Route path="/vendor/dashboard" element={<VendorDashboard />} />
             <Route path="/vendor/products" element={<VendorProductManager />} />
             <Route path="/vendor/analytics" element={<VendorAnalytics />} />
             <Route path="/vendor/sales" element={<VendorSalesReport />} />
+            <Route path="/vendor/chats" element={<VendorChats />} />
             <Route path="/vendor/:vendorId/products" element={<ProductBrowse />} />
-            <Route path="/vendor/listings/new" element={<ComingSoon />} />
           </Route>
           <Route element={<RequireShopper />}>
             <Route path="/shopper/dashboard" element={<ShopperDashboard />} />
@@ -861,9 +925,10 @@ function App() {
               />
             </div>
           } />
-        </Routes>
-      </main>
-    </div>
+          </Routes>
+        </main>
+      </div>
+    </ChatProvider>
   );
 }
 

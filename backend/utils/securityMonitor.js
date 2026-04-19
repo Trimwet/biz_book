@@ -1,4 +1,4 @@
-const { pool } = require('./');
+const { pool } = require('../utils');
 const { logSecurityEvent } = require('./auth');
 
 /**

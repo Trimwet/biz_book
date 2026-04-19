@@ -1,0 +1,16 @@
+{
+  "$id": "schemas/ai_flags.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIFlags",
+  "type": "object",
+  "required": ["product_id", "risk_score", "flags"],
+  "properties": {
+    "product_id": { "type": "integer" },
+    "risk_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "flags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

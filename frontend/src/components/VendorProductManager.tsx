@@ -5,7 +5,9 @@ import Skeleton from './ui/Skeleton';
 import { ToastContext } from '../contexts/ToastContext';
 import { useUser } from '../hooks/useUser';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiPlus, FiEdit3, FiTrash2, FiEye, FiEyeOff, FiRefreshCw, FiSave, FiX, FiCheck, FiAlertCircle, FiPackage, FiTrendingUp, FiDollarSign, FiBox, FiUpload, FiFilter, FiChevronLeft, FiChevronRight, FiInfo } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiEdit3, FiTrash2, FiEye, FiEyeOff, FiRefreshCw, FiSave, FiX, FiCheck, FiAlertCircle, FiPackage, FiTrendingUp, FiDollarSign, FiBox, FiUpload, FiFilter, FiChevronLeft, FiChevronRight, FiInfo, FiMail } from 'react-icons/fi';
+import { getSocket } from '../utils/socket';
+import { useChat } from '../contexts/ChatContext';
 
 // Form input component with validation (moved outside to prevent re-creation)
 const FormInput = ({ name, label, type = 'text', placeholder, required = false, formData, setFormData, formErrors, ...props }) => (
@@ -37,6 +39,7 @@ const VendorProductManager = () => {
   // Enhanced state management
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState(null);
+  const [riskMap, setRiskMap] = useState<Record<number, { risk_score: number; flags: string[] }>>({});
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -47,6 +50,12 @@ const VendorProductManager = () => {
   const [isValidating, setIsValidating] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+
+  // Chat state for vendor
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatListingId, setChatListingId] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState('');
   const [showGuide, setShowGuide] = useState(() => {
     try {
       const saved = localStorage.getItem('vendor_show_guide');
@@ -96,6 +105,7 @@ const VendorProductManager = () => {
   
 // Centralized auth/api helper
   const { apiRequest } = useUser();
+  const { addMessage } = useChat();
 
   // Enhanced product loading with better error handling
   const loadProducts = useCallback(async (showLoading = true) => {
@@ -115,7 +125,32 @@ const VendorProductManager = () => {
       if (data && Array.isArray(data.products)) {
         setProducts(data.products);
         setPagination(data.pagination);
+        // Fetch AI risk flags in bulk (non-blocking)
+        try {
+          const ids = (data.products || []).map((p: any) => p.id).filter((id: any) => typeof id === 'number');
+          if (ids.length) {
+            const params = new URLSearchParams({ ids: ids.join(',') });
+            const flagsRes = await apiRequest(`/api/vendor/products/ai-flags?${params.toString()}`);
+            const map: Record<number, { risk_score: number; flags: string[] }> = {};
+            for (const item of (flagsRes.items || [])) {
+              if (item.product_id != null) map[item.product_id] = { risk_score: item.risk_score || 0, flags: item.flags || [] };
+            }
+            setRiskMap(map);
+          } else {
+            setRiskMap({});
+          }
+        } catch (_e) {
+          // Silent fail; do not block UI
+          setRiskMap({});
+        }
         success('Products loaded successfully!', { duration: 2000 });
+        // Join Socket.IO rooms for each product to receive incoming messages
+        try {
+          const socket = getSocket();
+          (data.products || []).forEach((p: any) => {
+            if (p?.id) socket.emit('joinRoom', { roomId: `listing:${p.id}` });
+          });
+        } catch {}
       } else if (Array.isArray(data)) {
         setProducts(data);
         setPagination(null);
@@ -142,15 +177,15 @@ const VendorProductManager = () => {
 
   // Enhanced form validation
   const validateForm = useCallback(() => {
-    const errors = {};
+    const errors = {} as Record<string, string>;
     
-    if (!formData.name.trim()) {
+    if (!formData.name?.trim()) {
       errors.name = 'Product name is required';
     } else if (formData.name.length < 3) {
       errors.name = 'Product name must be at least 3 characters';
     }
     
-    if (!formData.description.trim()) {
+    if (!formData.description?.trim()) {
       errors.description = 'Description is required';
     } else if (formData.description.length < 10) {
       errors.description = 'Description must be at least 10 characters';
@@ -171,10 +206,15 @@ const VendorProductManager = () => {
     if (formData.sku && formData.sku.length < 2) {
       errors.sku = 'SKU must be at least 2 characters if provided';
     }
+
+    // Require at least one image before publish action (UI can enforce separately)
+    if (formData.status === 'published' && (!productImages || productImages.length === 0)) {
+      errors.images = 'Please add at least one product image to publish';
+    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [formData]);
+  }, [formData, productImages]);
 
   // Auto-save functionality
   const autoSaveDraft = useCallback(() => {
@@ -330,8 +370,8 @@ const VendorProductManager = () => {
 
   // Enhanced product status toggle
   const toggleProductStatus = async (productId, currentStatus, productName) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    const action = newStatus === 'active' ? 'activate' : 'deactivate';
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    const action = newStatus === 'published' ? 'publish' : 'unpublish';
     
     info(`Are you sure you want to ${action} "${productName}"?`, {
       duration: 0,
@@ -351,7 +391,7 @@ const VendorProductManager = () => {
               p.id === productId ? { ...p, status: newStatus } : p
             ));
             
-            success(`Product ${action}d successfully!`, { duration: 3000 });
+            success(`Product ${action}ed successfully!`, { duration: 3000 });
             
           } catch (err) {
             console.error('Failed to update product status:', err);
@@ -374,7 +414,7 @@ const VendorProductManager = () => {
       stock_quantity: '',
       image: '',
       sku: '',
-      status: 'active'
+      status: 'draft'
     });
     setProductImages([]);
     setFormErrors({});
@@ -580,6 +620,64 @@ const VendorProductManager = () => {
     loadProducts();
   }, [filters]);
 
+  // Global socket listener for vendor to be notified of new messages
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = (msg: any) => {
+      const roomId = msg?.roomId as string;
+      if (!roomId) return;
+      const listingIdStr = roomId.startsWith('listing:') ? roomId.split(':')[1] : null;
+      const listingId = listingIdStr ? parseInt(listingIdStr) : null;
+      if (!listingId) return;
+
+      // Push into global chat store
+      try {
+        const normalized = {
+          id: msg.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          roomId,
+          listingId,
+          message: String(msg.message || ''),
+          senderId: String(msg.senderId || 'anonymous'),
+          createdAt: msg.createdAt || new Date().toISOString(),
+        };
+        addMessage(normalized as any);
+      } catch {}
+
+      // If chat is open for the same listing, append local panel view
+      if (chatOpen && chatListingId === listingId) {
+        setChatMessages(prev => [...prev, msg]);
+      } else {
+        // Otherwise, show an info toast with quick action to open chats page
+        const matched = products.find((p) => p.id === listingId);
+        const title = matched?.name ? `New message for ${matched.name}` : `New message on listing #${listingId}`;
+        info(title, {
+          duration: 5000,
+          action: {
+            label: 'Open Chat',
+            onClick: () => {
+              navigate(`/vendor/chats?listing=${listingId}`);
+            }
+          }
+        });
+      }
+    };
+
+    socket.off('message:new', handler);
+    socket.on('message:new', handler);
+    return () => {
+      socket.off('message:new', handler);
+    };
+  }, [products, chatOpen, chatListingId, info]);
+
+  // When vendor opens a chat, ensure we join that room explicitly
+  const openChatForListing = useCallback((listingId: number) => {
+    const socket = getSocket();
+    socket.emit('joinRoom', { roomId: `listing:${listingId}` });
+    setChatListingId(listingId);
+    setChatMessages([]);
+    setChatOpen(true);
+  }, []);
+
   // Loading skeleton component
   const ProductSkeleton = () => (
     isMobile ? (
@@ -676,7 +774,7 @@ const VendorProductManager = () => {
               </div>
               <div className="flex gap-2">
                 <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700">Add Product</Button>
-                <Button onClick={() => navigate('/vendor/listings/new')} variant="outline">Quick Listing</Button>
+                <Button onClick={() => navigate('/vendor/dashboard#listings')} variant="outline">Quick Listing</Button>
                 <button onClick={() => { setShowGuide(false); try { localStorage.setItem('vendor_show_guide', 'false'); } catch {} }} className="text-sm text-gray-500 hover:text-gray-700">Hide</button>
               </div>
             </div>
@@ -1209,6 +1307,22 @@ const VendorProductManager = () => {
                       <div className="text-xs text-gray-600 mt-1">
                         {product.city ? `${product.city}, ${product.state || 'Nigeria'}` : (product.state || '—')}
                       </div>
+                      <div className="mt-1">
+                        {(() => {
+                          const r = riskMap[product.id]?.risk_score ?? 0;
+                          const level = r >= 70 ? 'High' : r >= 30 ? 'Medium' : 'Low';
+                          const cls = r >= 70
+                            ? 'bg-red-100 text-red-800'
+                            : r >= 30
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-green-100 text-green-800';
+                          return (
+                            <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${cls}`}>
+                              {level} {r ? `(${r})` : ''}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 flex justify-between items-center">
@@ -1232,6 +1346,13 @@ const VendorProductManager = () => {
                       title="Edit Product"
                     >
                       <FiEdit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => openChatForListing(product.id)}
+                      className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                      title="Open Chat"
+                    >
+                      <FiMail className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => toggleProductStatus(product.id, product.status, product.name)}
@@ -1281,6 +1402,7 @@ const VendorProductManager = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Location</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Performance</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Risk</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600">Actions</th>
                     </tr>
                   </thead>
@@ -1362,6 +1484,22 @@ const VendorProductManager = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4">
+                          {(() => {
+                            const r = riskMap[product.id]?.risk_score ?? 0;
+                            const level = r >= 70 ? 'High' : r >= 30 ? 'Medium' : 'Low';
+                            const cls = r >= 70
+                              ? 'bg-red-100 text-red-800'
+                              : r >= 30
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-green-100 text-green-800';
+                            return (
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${cls}`} title={riskMap[product.id]?.flags?.join(', ') || ''}>
+                                {level} {r ? `(${r})` : ''}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-6 py-4">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => editProduct(product)}
@@ -1369,6 +1507,13 @@ const VendorProductManager = () => {
                               title="Edit Product"
                             >
                               <FiEdit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openChatForListing(product.id)}
+                              className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                              title="Open Chat"
+                            >
+                              <FiMail className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => toggleProductStatus(product.id, product.status, product.name)}
@@ -1480,6 +1625,64 @@ const VendorProductManager = () => {
           </Card>
         )}
       </div>
+    {/* Chat Panel */}
+      {chatOpen && chatListingId && (
+        <div className="fixed bottom-4 right-4 w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="font-semibold text-gray-900 flex items-center">
+              <FiMail className="w-4 h-4 mr-2" />
+              Messages for Listing #{chatListingId}
+            </div>
+            <button onClick={() => setChatOpen(false)} className="text-gray-500 hover:text-gray-700">
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-3 h-72 overflow-y-auto">
+            {chatMessages.length === 0 ? (
+              <p className="text-sm text-gray-500">No messages yet for this listing.</p>
+            ) : (
+              <ul className="space-y-2">
+                {chatMessages.map((m, idx) => (
+                  <li key={m.id || idx} className="text-sm">
+                    <span className="text-gray-500 mr-2">[{new Date(m.createdAt || Date.now()).toLocaleTimeString()}]</span>
+                    <span className="font-medium mr-1">{m.senderId || 'anon'}:</span>
+                    <span className="text-gray-800">{m.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="p-3 border-t border-gray-200 flex gap-2">
+            <input
+              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+              placeholder="Type a reply..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const msg = chatInput.trim();
+                  if (!msg) return;
+                  const socket = getSocket();
+                  socket.emit('message:send', { roomId: `listing:${chatListingId}`, message: msg, senderId: 'vendor' });
+                  setChatInput('');
+                }
+              }}
+            />
+            <Button
+              onClick={() => {
+                const msg = chatInput.trim();
+                if (!msg) return;
+                const socket = getSocket();
+                socket.emit('message:send', { roomId: `listing:${chatListingId}`, message: msg, senderId: 'vendor' });
+                setChatInput('');
+              }}
+            >
+              Send
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

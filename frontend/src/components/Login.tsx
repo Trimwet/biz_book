@@ -49,41 +49,35 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-white flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gray-50 items-center justify-center">
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-white">
         <div className="max-w-md text-center">
           <div className="mb-8">
             <Logo size="xlarge" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Welcome Back to BIZ BOOK
+            Business, simplified
           </h1>
           <p className="text-lg text-gray-600 mb-8">
-            Your trusted platform for smart shopping and business connections.
+            Compare across verified vendors, track prices, and connect directly.
           </p>
-          <div className="space-y-4 text-left">
-            <div className="flex items-center">
-              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-gray-700">Compare prices across vendors</span>
+          <div className="mt-6 grid grid-cols-2 gap-3 text-left">
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-gray-800 text-sm">Compare prices across vendors</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-gray-700">Smart price alerts and tracking</span>
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-gray-800 text-sm">Smart price alerts and tracking</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-gray-700">Verified reviews and ratings</span>
+            <div className="col-span-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-gray-800 text-sm">Verified reviews and ratings</span>
             </div>
           </div>
         </div>
@@ -106,7 +100,7 @@ const Login = () => {
             </p>
           </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -120,6 +114,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                aria-invalid={!!error}
                 placeholder="Enter your email"
               />
             </div>
@@ -138,6 +133,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  aria-invalid={!!error}
                   placeholder="Enter your password"
                 />
                 <button
@@ -160,15 +156,20 @@ const Login = () => {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div id="login-error" role="alert" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <div className="flex items-center justify-between">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                Remember me
+              </label>
               <button
                 type="button"
-                className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                onClick={() => window.location.assign('/forgot')}
               >
                 Forgot password?
               </button>
@@ -191,6 +192,21 @@ const Login = () => {
                 'Sign In'
               )}
             </button>
+
+            {/* Alt sign-in placeholder */}
+            <div className="mt-4">
+              <button type="button" className="w-full border border-gray-200 rounded-lg py-2.5 hover:bg-gray-50 text-gray-700">
+                Continue with Google
+              </button>
+            </div>
+            {/* Divider */}
+            <div className="mt-6">
+              <div className="relative flex items-center">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="px-3 text-xs text-gray-500">or</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+            </div>
           </form>
 
           <div className="text-center">
@@ -212,32 +228,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Features Preview */}
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-            <h3 className="text-sm font-medium text-blue-900 mb-3">
-              Nigeria's Leading Marketplace Platform
-            </h3>
-            <ul className="space-y-2 text-sm text-blue-700">
-              <li className="flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Compare prices across Nigerian vendors
-              </li>
-              <li className="flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Smart alerts and price tracking
-              </li>
-              <li className="flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Verified reviews and business insights
-              </li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>

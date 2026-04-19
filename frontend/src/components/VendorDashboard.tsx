@@ -8,6 +8,8 @@ import {
   DollarSign, Bell, Activity
 } from 'lucide-react';
 
+import VendorListingsTable from './VendorListingsTable';
+
 function VendorDashboard() {
   const { user, loading, getProfile, apiRequest } = useUser();
   const [dashboardStats, setDashboardStats] = useState({
@@ -93,6 +95,19 @@ function VendorDashboard() {
     );
   }
 
+  const [activeTab, setActiveTab] = useState<'overview'|'listings'>('overview');
+
+  // Hash-based tab switch to avoid route changes
+  useEffect(() => {
+    const applyHash = () => {
+      if (window.location.hash === '#listings') setActiveTab('listings');
+      else setActiveTab('overview');
+    };
+    applyHash();
+    window.addEventListener('hashchange', applyHash);
+    return () => window.removeEventListener('hashchange', applyHash);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -127,6 +142,13 @@ function VendorDashboard() {
       
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Tabs */}
+        <div className="mb-6 flex items-center gap-3 border-b border-gray-200">
+          <button onClick={() => { setActiveTab('overview'); history.replaceState(null,'', '#'); }} className={`py-2 px-3 text-sm font-medium ${activeTab==='overview' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>Overview</button>
+          <button onClick={() => { setActiveTab('listings'); history.replaceState(null,'', '#listings'); }} className={`py-2 px-3 text-sm font-medium ${activeTab==='listings' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>Listings</button>
+        </div>
+        {activeTab === 'overview' && (
+        <>
         {/* Stats */}
         {statsLoading ? (
           <div className="grid md:grid-cols-4 gap-6 mb-8">
@@ -272,6 +294,18 @@ function VendorDashboard() {
             </div>
           </div>
         </div>
+        </>
+        )}
+
+        {activeTab === 'listings' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Listings</h2>
+              <p className="text-gray-600 mb-4">Manage live offers for your products. Bulk update price, stock, or status.</p>
+              <VendorListingsTable />
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         <div className="mb-8">

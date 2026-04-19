@@ -1,0 +1,23 @@
+{
+  "$id": "schemas/product.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Product",
+  "type": "object",
+  "required": ["name", "price", "category"],
+  "properties": {
+    "id": { "type": "integer" },
+    "vendor_id": { "type": "integer" },
+    "name": { "type": "string", "minLength": 2, "maxLength": 200 },
+    "description": { "type": "string" },
+    "category": { "type": "string" },
+    "price": { "type": "number", "minimum": 0 },
+    "specifications": { "type": "object", "additionalProperties": true },
+    "stock_quantity": { "type": "integer", "minimum": 0 },
+    "status": { "type": "string", "enum": ["draft", "published", "archived", "active", "inactive", null] },
+    "sku": { "type": ["string", "null"], "minLength": 0 },
+    "state": { "type": ["string", "null"] },
+    "city": { "type": ["string", "null"] },
+    "created_at": { "type": ["string", "null"], "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

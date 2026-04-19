@@ -1,126 +1,145 @@
-const multer = require('multer');
+/**
+ * Image upload helpers for Fastify + @fastify/multipart.
+ * No multer — files are streamed via @fastify/multipart's async iterator.
+ *
+ * Phase 1 (inline): Sharp resize → local WebP file. API responds immediately.
+ * Phase 2 (background): BullMQ worker uploads to Cloudinary, updates DB row.
+ */
+
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
+const { enqueueCloudinaryUpload } = require('../queues/imageQueue');
 
-// Create uploads directory if it doesn't exist
-const createUploadsDir = async () => {
-  const uploadsDir = path.join(__dirname, '../uploads');
-  const productsDir = path.join(uploadsDir, 'products');
-  
-  try {
-    await fs.access(uploadsDir);
-  } catch {
-    await fs.mkdir(uploadsDir, { recursive: true });
+// ─── Cloudinary (sync fallback when BullMQ unavailable) ───────────────────────
+let cloudinary = null;
+let useCloudinary = false;
+try {
+  if (
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  ) {
+    cloudinary = require('cloudinary').v2;
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+    useCloudinary = true;
   }
-  
-  try {
-    await fs.access(productsDir);
-  } catch {
-    await fs.mkdir(productsDir, { recursive: true });
-  }
-};
+} catch (_) {}
 
-// Initialize uploads directory
-createUploadsDir();
+const UPLOADS_DIR = path.join(__dirname, '../uploads/products');
 
-// Configure multer for memory storage
-const storage = multer.memoryStorage();
+async function ensureUploadsDir() {
+  await fs.mkdir(path.join(__dirname, '../uploads'), { recursive: true });
+  await fs.mkdir(UPLOADS_DIR, { recursive: true });
+}
+ensureUploadsDir();
 
-const fileFilter = (req, file, cb) => {
-  // Check if file is an image
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'), false);
-  }
-};
+/**
+ * Read all image parts from a Fastify multipart request.
+ * Returns an array of processedImage objects ready for DB insertion.
+ *
+ * @param {FastifyRequest} request
+ * @returns {Promise<Array>}
+ */
+async function processMultipartImages(request) {
+  const processed = [];
+  const MAX_FILES = 5;
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 5 // Maximum 5 files per upload
-  }
-});
+  const parts = request.parts();
+  for await (const part of parts) {
+    if (part.type !== 'file') continue;
+    if (!part.mimetype.startsWith('image/')) continue;
+    if (processed.length >= MAX_FILES) break;
 
-// Image processing middleware
-const processImages = async (req, res, next) => {
-  if (!req.files || req.files.length === 0) {
-    return next();
-  }
-
-  try {
-    const processedImages = [];
-    
-    for (const file of req.files) {
-      const filename = `${uuidv4()}-${Date.now()}.webp`;
-      const filepath = path.join(__dirname, '../uploads/products', filename);
-      
-      // Process image with sharp
-      await sharp(file.buffer)
-        .resize(800, 800, { 
-          fit: 'inside',
-          withoutEnlargement: true 
-        })
-        .webp({ quality: 85 })
-        .toFile(filepath);
-      
-      // Create thumbnail
-      const thumbnailFilename = `thumb-${filename}`;
-      const thumbnailPath = path.join(__dirname, '../uploads/products', thumbnailFilename);
-      
-      await sharp(file.buffer)
-        .resize(200, 200, { 
-          fit: 'cover' 
-        })
-        .webp({ quality: 80 })
-        .toFile(thumbnailPath);
-      
-      processedImages.push({
-        original: filename,
-        thumbnail: thumbnailFilename,
-        originalName: file.originalname,
-        size: file.size
-      });
+    // Read file into buffer (respecting size limit)
+    const chunks = [];
+    let totalSize = 0;
+    for await (const chunk of part.file) {
+      totalSize += chunk.length;
+      if (totalSize > MAX_SIZE) throw new Error('File too large (max 5 MB)');
+      chunks.push(chunk);
     }
-    
-    req.processedImages = processedImages;
-    next();
-  } catch (error) {
-    console.error('Image processing error:', error);
-    res.status(500).json({ 
-      error: 'Failed to process images',
-      code: 'IMAGE_PROCESSING_ERROR' 
+    const buffer = Buffer.concat(chunks);
+
+    const filename = `${uuidv4()}-${Date.now()}.webp`;
+    const thumbFilename = `thumb-${filename}`;
+    const filepath = path.join(UPLOADS_DIR, filename);
+    const thumbPath = path.join(UPLOADS_DIR, thumbFilename);
+
+    await sharp(buffer)
+      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toFile(filepath);
+
+    await sharp(buffer)
+      .resize(200, 200, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toFile(thumbPath);
+
+    processed.push({
+      original: filename,
+      thumbnail: thumbFilename,
+      originalName: part.filename,
+      localFilePath: filepath,
+      localThumbPath: thumbPath,
     });
   }
-};
 
-// Delete image files
-const deleteImages = async (imageFilenames) => {
-  if (!imageFilenames || imageFilenames.length === 0) return;
-  
-  try {
-    for (const filename of imageFilenames) {
-      const imagePath = path.join(__dirname, '../uploads/products', filename);
-      const thumbnailPath = path.join(__dirname, '../uploads/products', `thumb-${filename}`);
-      
+  return processed;
+}
+
+/**
+ * After product_images rows are inserted, enqueue Cloudinary upload jobs.
+ * @param {Array<{imageId, localFilePath, localThumbPath}>} items
+ * @param {number} productId
+ */
+async function enqueueImageUploads(items, productId) {
+  if (!useCloudinary) return;
+
+  for (const item of items) {
+    const queued = await enqueueCloudinaryUpload({
+      productId,
+      imageId: item.imageId,
+      localFilePath: item.localFilePath,
+      localThumbPath: item.localThumbPath,
+    });
+
+    // Sync fallback if queue unavailable
+    if (!queued && cloudinary) {
       try {
-        await fs.unlink(imagePath);
-        await fs.unlink(thumbnailPath);
-      } catch (error) {
-        console.warn(`Failed to delete image: ${filename}`, error.message);
+        const buffer = await fs.readFile(item.localFilePath);
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: 'bizbook/products', resource_type: 'image', format: 'webp' },
+            (err, res) => (err ? reject(err) : resolve(res))
+          );
+          stream.end(buffer);
+        });
+        const { pool } = require('../utils');
+        await pool.query('UPDATE product_images SET image_url = $1 WHERE id = $2', [
+          result.secure_url,
+          item.imageId,
+        ]);
+        await fs.unlink(item.localFilePath).catch(() => {});
+        await fs.unlink(item.localThumbPath).catch(() => {});
+      } catch (err) {
+        console.warn('⚠️  Sync Cloudinary fallback failed:', err.message);
       }
     }
-  } catch (error) {
-    console.error('Error deleting images:', error);
   }
-};
+}
 
-module.exports = {
-  upload: upload.array('images', 5), // Accept up to 5 images
-  processImages,
-  deleteImages
-};
+async function deleteImages(filenames) {
+  for (const f of filenames || []) {
+    await fs.unlink(path.join(UPLOADS_DIR, f)).catch(() => {});
+    await fs.unlink(path.join(UPLOADS_DIR, `thumb-${f}`)).catch(() => {});
+  }
+}
+
+module.exports = { processMultipartImages, enqueueImageUploads, deleteImages };

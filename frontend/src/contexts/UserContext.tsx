@@ -4,7 +4,15 @@ import config from '../config';
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('user');
+        return raw ? JSON.parse(raw) : null;
+      } catch {}
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [refreshToken, setRefreshToken] = useState(() => {
     // Get refresh token from localStorage on initial load
@@ -38,7 +46,8 @@ export const UserProvider = ({ children }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to refresh token');
+        // Only hard-fail if the server explicitly rejects
+        throw new Error(`Failed to refresh token: ${response.status}`);
       }
 
       const data = await response.json();
@@ -51,9 +60,8 @@ export const UserProvider = ({ children }) => {
       
       return data.accessToken;
     } catch (error) {
-      console.error('Token refresh failed:', error);
-      // If refresh fails, clear all auth data and redirect to login
-      logout();
+      console.error('Token refresh failed (non-fatal):', error);
+      // Do not auto-logout on transient errors; let caller decide.
       throw error;
     }
   };
@@ -145,6 +153,7 @@ export const UserProvider = ({ children }) => {
       setUser(data.user);
       setAccessToken(data.accessToken);
       setRefreshToken(data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       
@@ -178,6 +187,7 @@ export const UserProvider = ({ children }) => {
       setUser(data.user);
       setAccessToken(data.accessToken);
       setRefreshToken(data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       
@@ -208,6 +218,7 @@ export const UserProvider = ({ children }) => {
       setUser(null);
       setAccessToken(null);
       setRefreshToken(null);
+      localStorage.removeItem('user');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       // Redirect to home page
@@ -292,14 +303,23 @@ export const UserProvider = ({ children }) => {
           setAccessToken(storedToken);
           setRefreshToken(storedRefreshToken);
           
-          // Try to get user profile
-          await getProfile();
+          // Try to get user profile; on 401 attempt refresh once
+          try {
+            await getProfile();
+          } catch (e) {
+            try {
+              const newToken = await refreshAccessToken();
+              if (newToken) {
+                await getProfile();
+              }
+            } catch (e2) {
+              // Do not nuke tokens on transient issues; leave state as-is
+              console.warn('Profile init failed after refresh:', e2);
+            }
+          }
         }
       } catch (error) {
         console.error('Auth initialization failed:', error);
-        // Clear invalid tokens
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
       } finally {
         setLoading(false);
       }

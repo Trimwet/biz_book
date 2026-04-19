@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 import { 
@@ -12,17 +12,42 @@ import Badge from './ui/Badge';
 import Skeleton from './ui/Skeleton';
 import CustomerReviews from './CustomerReviews';
 import config from '../config';
+import { getSocket } from '../utils/socket';
+import { useChat } from '../contexts/ChatContext';
+import { postEvent } from '../api/personalization';
+import RecommendedStrip from './RecommendedStrip';
+import { sendViewEventOnce } from '../utils/personalization';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, isShopper, isVendor } = useUser();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+
+  // Chat state (shopper-only UI)
+  const { conversations, addMessage, hydrateConversation } = useChat();
+  const shopper = isShopper?.() ?? false;
+  const vendor = isVendor?.() ?? false;
+  const [chatInput, setChatInput] = useState('');
+  const [vendorTyping, setVendorTyping] = useState(false);
+  const listingIdNum = id ? parseInt(id) : null as any;
+  const convo = listingIdNum ? conversations[listingIdNum] : undefined as any;
+  const messages = convo?.messages || [];
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll chat to latest message
+  useEffect(() => {
+    if (activeTab === 'chat' && chatScrollRef.current) {
+      try {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      } catch {}
+    }
+  }, [activeTab, messages?.length]);
 
   const fetchProductDetails = useCallback(async () => {
     try {
@@ -55,6 +80,11 @@ const ProductDetails = () => {
 
       setProduct(mapped);
 
+      // Personalization: record view event (debounced)
+      try {
+        sendViewEventOnce(mapped.id, { category: mapped.category });
+      } catch (_) {}
+
       if (mapped.image_url) {
         setSelectedImage(0);
       }
@@ -70,6 +100,58 @@ const ProductDetails = () => {
  useEffect(() => {
    fetchProductDetails();
  }, [id, fetchProductDetails]);
+
+ // Socket.IO: shopper-only: join room for this listing; listen for typing and hydrate from server
+ useEffect(() => {
+   if (!id || !shopper) return;
+   const socket = getSocket();
+   const roomId = `listing:${id}`;
+
+   const onTyping = (payload: any) => {
+     if (payload?.roomId !== roomId) return;
+     const fromVendor = String(payload?.senderId) === 'vendor';
+     if (fromVendor) setVendorTyping(!!payload?.typing);
+   };
+
+   socket.emit('joinRoom', { roomId });
+   socket.on('typing', onTyping);
+
+   // Hydrate conversation history from API
+   (async () => {
+     try {
+       const byListing = await fetch(`${config.API_BASE_URL}/api/chat/by-listing/${id}`);
+       if (!byListing.ok) return;
+       const { conversation } = await byListing.json();
+       if (!conversation?.id) return;
+       const msgsRes = await fetch(`${config.API_BASE_URL}/api/chat/${conversation.id}/messages?limit=50`);
+       if (!msgsRes.ok) return;
+       const data = await msgsRes.json();
+       const mapped = Array.isArray(data?.messages) ? data.messages.map((m: any) => ({
+         id: String(m.id),
+         roomId,
+         listingId: parseInt(id as string),
+         message: String(m.text || ''),
+         senderId: String(m.sender_role || ''),
+         createdAt: m.created_at || new Date().toISOString(),
+         clientMsgId: m.client_msg_id || null,
+       })) : [];
+       hydrateConversation(parseInt(id as string), mapped);
+       // Mark read on server for shopper role after hydrating
+       try {
+        await fetch(`${config.API_BASE_URL}/api/chat/${conversation.id}/read?role=shopper`, {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': 'disabled' }
+        });
+       } catch (_) {}
+     } catch (e) {
+       console.warn('Failed to hydrate chat history', e);
+     }
+   })();
+
+   return () => {
+     socket.off('typing', onTyping);
+   };
+ }, [id, hydrateConversation, shopper]);
 
  const addToWatchlist = async () => {
     if (!user) {
@@ -89,6 +171,7 @@ const ProductDetails = () => {
 
       if (response.ok) {
         setIsInWatchlist(true);
+        try { postEvent(config.API_BASE_URL, { type: 'add_watchlist', productId: parseInt(id) }); } catch {}
         // Show success message
       }
     } catch (err) {
@@ -378,7 +461,8 @@ const ProductDetails = () => {
             { id: 'overview', label: 'Overview' },
             { id: 'specifications', label: 'Specifications' },
             { id: 'reviews', label: `Reviews (${product.review_count})` },
-            { id: 'price-history', label: 'Price History' }
+            { id: 'price-history', label: 'Price History' },
+            ...(shopper ? [{ id: 'chat', label: 'Chat' }] : [])
           ].map(tab => (
             <button
               key={tab.id}
@@ -419,6 +503,131 @@ const ProductDetails = () => {
                     </div>
                   </div>
                 )}
+              </div>
+              {/* Recommendations under overview */}
+              <RecommendedStrip productId={product.id} />
+            </Card>
+          )}
+
+          {activeTab === 'chat' && shopper && (
+            <Card className="p-0 overflow-hidden">
+              {/* Chat Header */}
+              <div className="flex items-center gap-3 p-4 border-b border-gray-100 bg-gray-50">
+                <div className="w-10 h-10 rounded-md bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-lg">🛍️</div>
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 truncate">Chat about {product?.name || 'this product'}</div>
+                  <div className="text-xs text-gray-500">Ask questions or negotiate</div>
+                </div>
+              </div>
+
+              {/* Chat Messages */}
+              <div ref={chatScrollRef} className="h-[400px] overflow-y-auto p-4 bg-white">
+                {vendorTyping && (
+                  <div className="mb-3 text-xs text-gray-500">Vendor is typing…</div>
+                )}
+                {messages.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-gray-500 text-sm">No messages yet. Start the conversation!</div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map((m, idx) => {
+                      const mine = String(m.senderId) === 'shopper' || (user?.id && String(m.senderId) === String(user.id));
+                      return (
+                        <div key={m.id || idx} className={`flex items-end gap-2 ${mine ? 'justify-end flex-row-reverse' : 'justify-start'}`}>
+                          <div className={`w-8 h-8 rounded-full ${mine ? 'bg-blue-600' : 'bg-gray-300'} text-white flex items-center justify-center text-xs select-none`}>{mine ? 'You' : 'V'}</div>
+                          <div className={`${mine ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'} max-w-[75%] rounded-2xl px-4 py-2 shadow-sm`}
+                            title={new Date(m.createdAt || Date.now()).toLocaleString()}>
+                            <div className="text-[10px] mb-1 opacity-80">{mine ? 'You' : 'Vendor'}</div>
+                            <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.message}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Composer */}
+              <div className="p-4 border-t border-gray-100 bg-white/90 backdrop-blur">
+                <div className="flex gap-3">
+                  <input
+                    className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Type your message…"
+                    value={chatInput}
+                    onChange={(e) => {
+                      setChatInput(e.target.value);
+                      if (!shopper) return;
+                      const socket = getSocket();
+                      if (id) {
+                        socket.emit('typing', { roomId: `listing:${id}`, senderId: 'shopper', typing: true });
+                        window.clearTimeout((window as any).__shopperTypingTimer);
+                        (window as any).__shopperTypingTimer = window.setTimeout(() => {
+                          socket.emit('typing', { roomId: `listing:${id}`, senderId: 'shopper', typing: false });
+                        }, 1500);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const msg = chatInput.trim();
+                        if (!msg || !id) return;
+                        if (!user || !shopper) {
+                          return navigate('/login');
+                        }
+                        const socket = getSocket();
+                        const clientMsgId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        socket.emit('joinRoom', { roomId: `listing:${id}` });
+                        socket.emit('message:send', { roomId: `listing:${id}`, message: msg, senderId: 'shopper', clientMsgId });
+                        try {
+                          addMessage({
+                            id: clientMsgId,
+                            clientMsgId,
+                            roomId: `listing:${id}`,
+                            listingId: parseInt(id),
+                            message: msg,
+                            senderId: 'shopper',
+                            createdAt: new Date().toISOString(),
+                          } as any);
+                        } catch {}
+                        setChatInput('');
+                        socket.emit('typing', { roomId: `listing:${id}`, senderId: 'shopper', typing: false });
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => {
+                      const msg = chatInput.trim();
+                      if (!msg || !id) return;
+                      if (!user || !shopper) {
+                        return navigate('/login');
+                      }
+                      const socket = getSocket();
+                      const clientMsgId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                      socket.emit('joinRoom', { roomId: `listing:${id}` });
+                      socket.emit('message:send', { roomId: `listing:${id}`, message: msg, senderId: 'shopper', clientMsgId });
+                      try {
+                        addMessage({
+                          id: clientMsgId,
+                          clientMsgId,
+                          roomId: `listing:${id}`,
+                          listingId: parseInt(id),
+                          message: msg,
+                          senderId: 'shopper',
+                          createdAt: new Date().toISOString(),
+                        } as any);
+                      } catch {}
+                      setChatInput('');
+                      socket.emit('typing', { roomId: `listing:${id}`, senderId: 'shopper', typing: false });
+                    }}
+                    className="rounded-full px-5"
+                  >
+                    Send
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Recommendations at bottom of chat */}
+              <div className="border-t border-gray-100">
+                <RecommendedStrip productId={product?.id} title="More like this" />
               </div>
             </Card>
           )}

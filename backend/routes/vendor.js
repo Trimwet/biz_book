@@ -22,15 +22,19 @@ async function getProductWithImages(productId) {
 
 async function authenticateVendor(request, reply) {
   if (!pool.dbConnected) {
-    if (!request.user || request.user.userType !== 'vendor')
+    if (!request.user || (request.user.userType !== 'vendor' && !request.user.canSell))
       return reply.code(403).send({ error: 'Access denied. Vendor account required.', code: 'NOT_VENDOR_DEMO' });
     request.vendorId = request.user.userId || 1;
     return;
   }
   if (!request.user?.userId)
     return reply.code(401).send({ error: 'Authentication required.', code: 'NO_TOKEN' });
-  const uc = await pool.query('SELECT user_type FROM users WHERE id = $1', [request.user.userId]);
-  if (uc.rows.length === 0 || uc.rows[0].user_type !== 'vendor')
+  const uc = await pool.query('SELECT user_type, can_sell FROM users WHERE id = $1', [request.user.userId]);
+  if (uc.rows.length === 0)
+    return reply.code(403).send({ error: 'Access denied. Vendor account required.', code: 'NOT_VENDOR' });
+  const { user_type, can_sell } = uc.rows[0];
+  // Accept: original vendor accounts OR shoppers who have unlocked selling
+  if (user_type !== 'vendor' && !can_sell)
     return reply.code(403).send({ error: 'Access denied. Vendor account required.', code: 'NOT_VENDOR' });
   const vr = await pool.query('SELECT id FROM vendors WHERE user_id = $1', [request.user.userId]);
   if (vr.rows.length === 0)

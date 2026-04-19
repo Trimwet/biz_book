@@ -3,11 +3,12 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 
 export const RequireVendor: React.FC = () => {
-  const { user, isVendor, loading } = useUser();
+  const { user, isVendor, canSell, loading } = useUser() as any;
   const location = useLocation();
-  if (loading) return null; // wait until auth initializes to avoid flicker
+  if (loading) return null;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (!isVendor()) return <Navigate to="/" replace />;
+  // Accept original vendor accounts AND shoppers who have unlocked selling
+  if (!isVendor() && !canSell()) return <Navigate to="/" replace />;
   return <Outlet />;
 };
 
@@ -21,10 +22,10 @@ export const RequireShopper: React.FC = () => {
 };
 
 export const GuestOnly: React.FC = () => {
-  const { user, loading } = useUser();
+  const { user, loading } = useUser() as any;
   if (loading) return null;
   if (user) {
-    const target = user.user_type === 'vendor' ? '/vendor/dashboard' : '/shopper/dashboard';
+    const target = (user.user_type === 'vendor' || user.can_sell) ? '/vendor/dashboard' : '/shopper/dashboard';
     return <Navigate to={target} replace />;
   }
   return <Outlet />;

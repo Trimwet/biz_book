@@ -1,9 +1,42 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useEffect, useState } from 'react';
 import config from '../config';
 
-const UserContext = createContext();
+// ── Types ─────────────────────────────────────────────────────────────────────
+export interface AppUser {
+  id: number;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  user_type: 'vendor' | 'shopper' | 'admin';
+  can_sell?: boolean;
+  created_at?: string;
+  vendor_profile?: Record<string, any>;
+  shopper_profile?: Record<string, any>;
+}
 
-export const UserProvider = ({ children }) => {
+interface UserContextValue {
+  user: AppUser | null;
+  loading: boolean;
+  accessToken: string | null;
+  refreshToken: string | null;
+  login: (email: string, password: string) => Promise<any>;
+  register: (userData: Record<string, any>, userType: string) => Promise<any>;
+  logout: () => Promise<void>;
+  logoutWithConfirmation: () => void;
+  getProfile: () => Promise<any>;
+  updateProfile: (profileData: Record<string, any>) => Promise<any>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<any>;
+  apiRequest: (endpoint: string, options?: RequestInit & { body?: any }) => Promise<any>;
+  isAuthenticated: () => boolean;
+  isVendor: () => boolean;
+  isShopper: () => boolean;
+  canSell: () => boolean;
+  refreshAccessToken: () => Promise<string>;
+}
+
+const UserContext = createContext<UserContextValue>({} as UserContextValue);
+
+export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -67,7 +100,7 @@ export const UserProvider = ({ children }) => {
   };
 
   // Function to make authenticated API requests
-  const apiRequest = async (endpoint, options = {}) => {
+  const apiRequest = async (endpoint: string, options: RequestInit & { body?: any } = {}) => {
     let token = accessToken;
     
     // If no token, try to get it from localStorage
@@ -77,12 +110,11 @@ export const UserProvider = ({ children }) => {
 
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
-    // Build headers, avoid setting Content-Type for FormData so browser sets boundary automatically
-    const baseHeaders = isFormData ? {} : { 'Content-Type': 'application/json' };
-    const headers = {
-      ...(baseHeaders),
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
+    // Build headers — avoid Content-Type for FormData (browser sets boundary automatically)
+    const headers: Record<string, string> = {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string> | undefined),
     };
 
     const url = `${config.API_BASE_URL}${endpoint}`;
@@ -132,7 +164,7 @@ export const UserProvider = ({ children }) => {
   };
 
   // Login function
-  const login = async (email, password) => {
+  const login = async (email: string, password: string) => {
     try {
       const response = await fetch(`${config.API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -165,7 +197,7 @@ export const UserProvider = ({ children }) => {
   };
 
   // Register function
-  const register = async (userData, userType) => {
+  const register = async (userData: Record<string, any>, userType: string) => {
     try {
       const endpoint = userType === 'vendor' ? '/api/auth/signup/vendor' : '/api/auth/signup/shopper';
       const response = await fetch(`${config.API_BASE_URL}${endpoint}`, {
@@ -246,7 +278,7 @@ export const UserProvider = ({ children }) => {
   };
 
   // Update profile
-  const updateProfile = async (profileData) => {
+  const updateProfile = async (profileData: Record<string, any>) => {
     try {
       const data = await apiRequest('/api/auth/profile', {
         method: 'PUT',
@@ -261,7 +293,7 @@ export const UserProvider = ({ children }) => {
   };
 
   // Change password
-  const changePassword = async (currentPassword, newPassword) => {
+  const changePassword = async (currentPassword: string, newPassword: string) => {
     try {
       await apiRequest('/api/auth/change-password', {
         method: 'PUT',
@@ -289,6 +321,11 @@ export const UserProvider = ({ children }) => {
 
   const isShopper = () => {
     return user?.user_type === 'shopper';
+  };
+
+  // Can this user list and sell products? (vendor accounts + shoppers who upgraded)
+  const canSell = () => {
+    return user?.user_type === 'vendor' || user?.can_sell === true;
   };
 
   // Initialize user state on app load
@@ -344,6 +381,7 @@ export const UserProvider = ({ children }) => {
     isAuthenticated,
     isVendor,
     isShopper,
+    canSell,
     refreshAccessToken,
   };
 

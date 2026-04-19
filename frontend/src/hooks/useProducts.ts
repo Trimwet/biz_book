@@ -23,7 +23,10 @@ export interface Product {
   vendor_name?: string;
   vendor_location?: string;
   vendor_id?: number;
-  images?: ProductImage[];
+  /** Direct image URL — present in search/detail responses */
+  image_url?: string | null;
+  /** Image array — present in browse responses (json_agg from product_images join) */
+  images?: ProductImage[] | null;
   created_at: string;
   updated_at?: string;
 }
@@ -101,8 +104,12 @@ export function useProductsBrowse(filters: BrowseFilters = {}) {
     getNextPageParam: (lastPage) => {
       const p = lastPage.pagination;
       if (!p) return undefined;
-      const hasNext = p.has_next ?? (p.current_page < p.total_pages);
-      return hasNext ? (p.current_page ?? 1) + 1 : undefined;
+      // Browse endpoint returns has_next + current_page
+      // has_next is the authoritative signal; fall back to page comparison
+      const currentPage = p.current_page ?? p.currentPage ?? 1;
+      const totalPages = p.total_pages ?? p.totalPages ?? 1;
+      const hasNext = p.has_next ?? p.hasNext ?? (currentPage < totalPages);
+      return hasNext ? currentPage + 1 : undefined;
     },
     staleTime: 60 * 1000,
   });

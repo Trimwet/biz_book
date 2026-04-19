@@ -294,6 +294,15 @@ button, a, input, select, textarea {
   }
 }
 
+/* Hide scrollbar but keep functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Placeholder text color styling */
 ::placeholder {
   color: #6b7280 !important;

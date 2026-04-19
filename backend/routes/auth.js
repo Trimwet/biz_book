@@ -133,7 +133,7 @@ async function authRoutes(fastify) {
       const refreshToken = generateRefreshToken({ userId: user.id, email: user.email.toLowerCase(), userType: user.user_type });
       await storeRefreshToken(user.id, refreshToken, hashRefreshToken(refreshToken));
 
-      const responseUser = { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name, user_type: user.user_type, created_at: user.created_at };
+      const responseUser = { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name, user_type: user.user_type, can_sell: user.can_sell ?? (user.user_type === 'vendor'), created_at: user.created_at };
       if (user.user_type === 'vendor' && user.business_name) {
         responseUser.vendor_profile = { business_name: user.business_name, business_description: user.business_description, location: user.location, phone: user.vendor_phone, website: user.website };
       } else if (user.user_type === 'shopper') {
@@ -160,7 +160,7 @@ async function authRoutes(fastify) {
       if (result.rows.length === 0) return reply.code(404).send({ error: 'User not found' });
 
       const user = result.rows[0];
-      const responseUser = { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name, user_type: user.user_type, created_at: user.created_at };
+      const responseUser = { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name, user_type: user.user_type, can_sell: user.can_sell ?? (user.user_type === 'vendor'), created_at: user.created_at };
       if (user.user_type === 'vendor' && user.business_name) {
         responseUser.vendor_profile = { business_name: user.business_name, business_description: user.business_description, location: user.location, phone: user.vendor_phone, website: user.website };
       } else if (user.user_type === 'shopper') {
@@ -195,7 +195,7 @@ async function authRoutes(fastify) {
         FROM users u LEFT JOIN vendors v ON u.id = v.user_id WHERE u.id = $1
       `, [request.user.userId]);
       const user = userResult.rows[0];
-      const responseUser = { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name, user_type: user.user_type, created_at: user.created_at };
+      const responseUser = { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name, user_type: user.user_type, can_sell: user.can_sell ?? (user.user_type === 'vendor'), created_at: user.created_at };
       if (user.user_type === 'vendor' && user.business_name) {
         responseUser.vendor_profile = { business_name: user.business_name, business_description: user.business_description, location: user.location, phone: user.vendor_phone, website: user.website };
       } else if (user.user_type === 'shopper') {
@@ -301,6 +301,42 @@ async function authRoutes(fastify) {
     } catch (err) {
       fastify.log.error(err);
       return reply.code(500).send({ error: 'Failed to logout from all devices' });
+    }
+  });
+
+  // ── Upgrade shopper → vendor (unified account) ────────────────────────────
+  fastify.post('/upgrade-to-vendor', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    try {
+      const { businessName, category, location, phone, website } = request.body || {};
+      if (!businessName || !category || !location)
+        return reply.code(400).send({ error: 'businessName, category and location are required', code: 'MISSING_FIELDS' });
+
+      const userResult = await pool.query('SELECT id, email, user_type, can_sell FROM users WHERE id = $1', [request.user.userId]);
+      if (userResult.rows.length === 0) return reply.code(404).send({ error: 'User not found' });
+      const user = userResult.rows[0];
+
+      if (user.can_sell) return reply.code(409).send({ error: 'This account already has selling capabilities', code: 'ALREADY_VENDOR' });
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Create vendor profile
+        await client.query(
+          'INSERT INTO vendors (user_id, business_name, category, location, phone, website, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())',
+          [user.id, sanitize(businessName), sanitize(category), sanitize(location), phone ? sanitize(phone) : null, website ? sanitize(website) : null]
+        );
+        // Grant selling capability
+        await client.query('UPDATE users SET can_sell = true, updated_at = NOW() WHERE id = $1', [user.id]);
+        await client.query('COMMIT');
+      } catch (e) { await client.query('ROLLBACK'); throw e; }
+      finally { client.release(); }
+
+      await logSecurityEvent('ACCOUNT_UPGRADED_TO_VENDOR', { email: user.email, ip: request.ip, userAgent: request.headers['user-agent'] }, user.id);
+      return reply.send({ message: 'Vendor capabilities unlocked! You can now list products and manage sales.', canSell: true });
+    } catch (err) {
+      if (err.code === '23505') return reply.code(409).send({ error: 'A vendor profile already exists for this account', code: 'VENDOR_EXISTS' });
+      fastify.log.error(err);
+      return reply.code(500).send({ error: 'Failed to upgrade account', code: 'UPGRADE_FAILED' });
     }
   });
 

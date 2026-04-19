@@ -12,6 +12,7 @@
     "migrate:indexes": "node add-products-indexes.js",
     "migrate:indexes:perf": "node add-performance-indexes.js",
     "migrate:views": "node add-materialized-views.js",
+    "migrate:can-sell": "node add-can-sell-column.js",
     "migrate:chat": "node migrate-chat-tables.js",
     "seed:listings": "node seed-listings.js 2000",
     "worker:images": "node workers/imageWorker.js",

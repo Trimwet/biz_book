@@ -1,45 +1,97 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
-import { Filter } from 'lucide-react';
-import { useProductsBrowse } from '../hooks/useProducts';
+import { SlidersHorizontal, Search, ChevronDown, X } from 'lucide-react';
+import { useProductsBrowse, useCategories } from '../hooks/useProducts';
 import { useWatchlist, useToggleWatchlist } from '../hooks/useWatchlist';
 import ProductCard from './ProductCard';
 import FilterDrawer from './ui/FilterDrawer';
+import Skeleton from './ui/Skeleton';
 
-const CATEGORIES = [
-  'Electronics', 'Fashion', 'Home & Garden', 'Sports', 'Books',
-  'Beauty & Personal Care', 'Automotive', 'Health & Wellness',
+// ─── Skeleton card shown while loading ───────────────────────────────────────
+function ProductCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
+      <Skeleton className="aspect-[4/3] w-full rounded-none" />
+      <div className="p-3.5 space-y-2.5">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-5 w-1/2 mt-1" />
+        <div className="pt-2.5 mt-1 border-t border-neutral-100 flex justify-between">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SORT_OPTIONS = [
+  { value: 'created_at:DESC', label: 'Newest first' },
+  { value: 'created_at:ASC', label: 'Oldest first' },
+  { value: 'price:ASC', label: 'Price: Low to High' },
+  { value: 'price:DESC', label: 'Price: High to Low' },
+  { value: 'name:ASC', label: 'Name: A–Z' },
+  { value: 'name:DESC', label: 'Name: Z–A' },
 ];
 
 const ProductBrowse = () => {
+  const navigate = useNavigate();
   const { user } = useUser() as { user: any };
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    query: '',
-    category: '',
-    sortBy: 'created_at',
-    sortOrder: 'DESC',
-  });
 
-  // ── Data fetching via TanStack Query ──────────────────────────────────────
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [category, setCategory] = useState('');
+  const [sort, setSort] = useState('created_at:DESC');
+
+  const [sortBy, sortOrder] = sort.split(':') as [string, string];
+
+  // ── Categories from API ───────────────────────────────────────────────────
+  const { data: categoriesData } = useCategories();
+  const apiCategories: string[] = (categoriesData?.categories ?? [])
+    .map((c: { category: string }) => c.category)
+    .filter(Boolean)
+    .slice(0, 12); // cap at 12 pills
+
+  // ── Browse data via TanStack Query infinite scroll ────────────────────────
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isError,
   } = useProductsBrowse({
-    category: filters.category || undefined,
-    sortBy: filters.sortBy,
-    sortOrder: filters.sortOrder,
+    category: category || undefined,
+    sortBy,
+    sortOrder,
     limit: 12,
   });
 
-  const { data: watchlistSet } = useWatchlist(!!user && user.user_type === 'shopper');
+  // Flatten pages → flat product list
+  const products = data?.pages.flatMap((p) => p.products ?? []) ?? [];
+  const totalProducts: number =
+    data?.pages[0]?.pagination?.total_products ?? 0;
+
+  // ── Watchlist ─────────────────────────────────────────────────────────────
+  const isShopper = !!user && user.user_type === 'shopper';
+  const { data: watchlistSet } = useWatchlist(isShopper);
   const toggleWatchlistMutation = useToggleWatchlist();
 
-  // Flatten pages into a single product array
-  const products = data?.pages.flatMap((p) => p.products ?? []) ?? [];
+  const handleToggleWatch = useCallback(
+    (productId: number) => {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+      if (!isShopper) return; // vendors don't have watchlists
+      toggleWatchlistMutation.mutate({
+        productId,
+        inWatchlist: watchlistSet?.has(productId) ?? false,
+      });
+    },
+    [user, isShopper, watchlistSet, toggleWatchlistMutation, navigate]
+  );
 
   // ── Infinite scroll sentinel ──────────────────────────────────────────────
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -47,84 +99,202 @@ const ProductBrowse = () => {
   useEffect(() => {
     if (!sentinelRef.current || !hasNextPage || isFetchingNextPage) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) fetchNextPage();
-      },
-      { threshold: 0.5 }
+      (entries) => { if (entries[0].isIntersecting) fetchNextPage(); },
+      { threshold: 0.3 }
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // ── Watchlist toggle ──────────────────────────────────────────────────────
-  const handleToggleWatch = useCallback(
-    (productId: number) => {
-      if (!user) {
-        alert('Please log in to add items to your watchlist');
-        return;
+  // ── Search: redirect to /search page (browse doesn't support FTS) ─────────
+  const handleSearch = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
+      const q = searchInput.trim();
+      if (q.length >= 2) {
+        navigate(`/search?query=${encodeURIComponent(q)}`);
       }
-      const inWatchlist = watchlistSet?.has(productId) ?? false;
-      toggleWatchlistMutation.mutate({ productId, inWatchlist });
     },
-    [user, watchlistSet, toggleWatchlistMutation]
+    [searchInput, navigate]
   );
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-gray-700 mx-auto mb-4" />
-          <p className="text-gray-600">Loading products...</p>
-        </div>
-      </div>
-    );
-  }
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const activeFiltersCount = [category, sort !== 'created_at:DESC' ? sort : ''].filter(Boolean).length;
 
+  const clearCategory = () => setCategory('');
+  const clearSort = () => setSort('created_at:DESC');
+
+  const sortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'Newest first';
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white/95 backdrop-blur border-b border-gray-200 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-6 lg:py-8">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-gray-900">Browse listings</h1>
-              <p className="text-base text-gray-600 mt-2">Professional, clean results tailored to your interests</p>
+    <div className="min-h-screen bg-neutral-50">
+
+      {/* ── Sticky header ─────────────────────────────────────────────────── */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-neutral-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+          {/* Top row: title + filter button */}
+          <div className="flex items-center justify-between py-4 gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900">
+                Browse Marketplace
+              </h1>
+              {!isLoading && totalProducts > 0 && (
+                <p className="text-sm text-neutral-500 mt-0.5">
+                  {totalProducts.toLocaleString()} product{totalProducts !== 1 ? 's' : ''} available
+                </p>
+              )}
             </div>
+
             <button
               onClick={() => setShowFilters(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors min-w-[44px] min-h-[40px]"
+              className={`relative flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all duration-150 sm:hidden
+                ${activeFiltersCount > 0
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
+                }`}
               aria-label="Open filters"
             >
-              <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">Filters</span>
+              <SlidersHorizontal className="w-4 h-4" />
+              Filters
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-primary-600 text-[10px] font-bold border border-primary-300">
+                  {activeFiltersCount}
+                </span>
+              )}
             </button>
           </div>
 
-          {/* Search + category pills */}
-          <div className="mt-6 space-y-4">
-            <div className="relative">
+          {/* Search bar */}
+          <form onSubmit={handleSearch} className="pb-3">
+            <div className="relative flex items-center">
+              <Search className="absolute left-3.5 w-4 h-4 text-neutral-400 pointer-events-none" />
               <input
-                type="text"
-                placeholder="Search products, brands or categories…"
+                type="search"
+                placeholder="Search products — press Enter or click Search"
                 aria-label="Search products"
-                value={filters.query}
-                onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-28 py-2.5 border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder-neutral-400 bg-neutral-50 focus:bg-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 focus:outline-none transition-all duration-150"
               />
-              <svg className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <button
+                type="submit"
+                disabled={searchInput.trim().length < 2}
+                className="absolute right-1.5 px-4 py-1.5 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+              >
+                Search
+              </button>
             </div>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-              {CATEGORIES.map((cat) => (
+            {searchInput.trim().length >= 1 && searchInput.trim().length < 2 && (
+              <p className="text-xs text-neutral-400 mt-1 ml-1">Type at least 2 characters to search</p>
+            )}
+          </form>
+
+          {/* Category pills + desktop sort — hidden on mobile (use drawer) */}
+          <div className="hidden sm:flex items-center gap-3 pb-4 overflow-x-auto no-scrollbar">
+            {/* All pill */}
+            <button
+              onClick={clearCategory}
+              className={`px-3.5 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-all duration-150 flex-shrink-0
+                ${!category
+                  ? 'bg-neutral-900 text-white border-neutral-900'
+                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300'
+                }`}
+            >
+              All
+            </button>
+
+            {apiCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategory((prev) => (prev === cat ? '' : cat))}
+                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-all duration-150 flex-shrink-0
+                  ${category === cat
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300'
+                  }`}
+              >
+                {cat}
+              </button>
+            ))}
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Sort selector */}
+            <div className="relative flex-shrink-0">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-1.5 border border-neutral-200 rounded-xl text-sm font-medium text-neutral-700 bg-white hover:border-neutral-300 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 focus:outline-none cursor-pointer transition-all duration-150"
+                aria-label="Sort products"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Active filter chips ────────────────────────────────────────────── */}
+      {(category || sort !== 'created_at:DESC') && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-neutral-500">Active filters:</span>
+          {category && (
+            <button
+              onClick={clearCategory}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-50 text-primary-700 border border-primary-200 rounded-full text-xs font-medium hover:bg-primary-100 transition-colors duration-150"
+            >
+              {category}
+              <X className="w-3 h-3" />
+            </button>
+          )}
+          {sort !== 'created_at:DESC' && (
+            <button
+              onClick={clearSort}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-full text-xs font-medium hover:bg-neutral-200 transition-colors duration-150"
+            >
+              {sortLabel}
+              <X className="w-3 h-3" />
+            </button>
+          )}
+          <button
+            onClick={() => { clearCategory(); clearSort(); }}
+            className="text-xs text-neutral-400 hover:text-neutral-600 underline-offset-2 hover:underline ml-1 transition-colors duration-150"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* ── Mobile filter drawer ───────────────────────────────────────────── */}
+      <FilterDrawer
+        open={showFilters}
+        onClose={() => setShowFilters(false)}
+        title="Filter & Sort"
+      >
+        <div className="space-y-5">
+          {/* Category */}
+          <div>
+            <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Category</h4>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => { clearCategory(); setShowFilters(false); }}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-150
+                  ${!category ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+              >
+                All
+              </button>
+              {apiCategories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setFilters((f) => ({ ...f, category: f.category === cat ? '' : cat }))}
-                  className={`px-3 py-1.5 rounded-full text-sm border transition whitespace-nowrap ${
-                    filters.category === cat
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                  }`}
+                  onClick={() => { setCategory(cat === category ? '' : cat); setShowFilters(false); }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-150
+                    ${category === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
                 >
                   {cat}
                 </button>
@@ -132,101 +302,125 @@ const ProductBrowse = () => {
             </div>
           </div>
 
-          {/* Desktop sort controls */}
-          <div className="hidden sm:block mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <div className="grid grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-                <select
-                  value={filters.sortBy}
-                  onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          {/* Sort */}
+          <div>
+            <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Sort By</h4>
+            <div className="space-y-1.5">
+              {SORT_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => { setSort(o.value); setShowFilters(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-all duration-150
+                    ${sort === o.value
+                      ? 'bg-primary-50 text-primary-700 border-primary-200 font-medium'
+                      : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
+                    }`}
                 >
-                  <option value="created_at">Newest</option>
-                  <option value="price">Price</option>
-                  <option value="name">Name</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
-                <select
-                  value={filters.sortOrder}
-                  onChange={(e) => setFilters((f) => ({ ...f, sortOrder: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="DESC">High to Low</option>
-                  <option value="ASC">Low to High</option>
-                </select>
-              </div>
+                  {o.label}
+                </button>
+              ))}
             </div>
           </div>
-
-          {/* Mobile filter drawer */}
-          <FilterDrawer open={showFilters} onClose={() => setShowFilters(false)}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-                <select
-                  value={filters.sortBy}
-                  onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="created_at">Newest</option>
-                  <option value="price">Price</option>
-                  <option value="name">Name</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
-                <select
-                  value={filters.sortOrder}
-                  onChange={(e) => setFilters((f) => ({ ...f, sortOrder: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="DESC">High to Low</option>
-                  <option value="ASC">Low to High</option>
-                </select>
-              </div>
-            </div>
-          </FilterDrawer>
         </div>
-      </div>
+      </FilterDrawer>
 
-      {/* Products Grid */}
-      <div className="max-w-6xl mx-auto px-6 lg:px-8 py-8">
-        {products.length === 0 ? (
+      {/* ── Product grid ──────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        {/* Error state */}
+        {isError && !isLoading && (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4">📦</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No results</h3>
-            <p className="text-gray-600">Try adjusting your filters</p>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-50 border border-red-100 mb-4">
+              <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-1">Failed to load products</h3>
+            <p className="text-neutral-500 text-sm mb-4">There was a problem connecting to the server.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-5 py-2 bg-neutral-900 text-white text-sm font-semibold rounded-xl hover:bg-neutral-700 transition-colors duration-150"
+            >
+              Try again
+            </button>
           </div>
-        ) : (
+        )}
+
+        {/* Loading skeletons */}
+        {isLoading && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!isLoading && !isError && products.length === 0 && (
+          <div className="text-center py-20">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-neutral-100 border border-neutral-200 mb-5">
+              <svg className="w-10 h-10 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-neutral-900 mb-2">
+              {category ? `No products in "${category}"` : 'No products yet'}
+            </h3>
+            <p className="text-neutral-500 text-sm mb-5">
+              {category ? 'Try a different category or clear your filters.' : 'Check back soon — vendors are adding new listings every day.'}
+            </p>
+            {category && (
+              <button
+                onClick={clearCategory}
+                className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-colors duration-150"
+              >
+                Clear category filter
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Grid */}
+        {!isLoading && products.length > 0 && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {products.map((product) => (
-                <ProductCard
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {products.map((product, idx) => (
+                <div
                   key={product.id}
-                  product={product}
-                  onClick={(id: number) => (window.location.href = `/product/${id}`)}
-                  inWatchlist={watchlistSet?.has(product.id) ?? false}
-                  onToggleWatch={handleToggleWatch}
-                />
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${Math.min(idx % 12, 8) * 40}ms`, animationFillMode: 'both' }}
+                >
+                  <ProductCard
+                    product={product}
+                    onClick={(id) => navigate(`/product/${id}`)}
+                    inWatchlist={isShopper ? (watchlistSet?.has(product.id) ?? false) : undefined}
+                    onToggleWatch={isShopper ? handleToggleWatch : undefined}
+                  />
+                </div>
               ))}
             </div>
 
             {/* Infinite scroll sentinel */}
-            <div ref={sentinelRef} className="h-4" />
+            <div ref={sentinelRef} className="h-8 mt-4" />
 
+            {/* Loading more indicator */}
             {isFetchingNextPage && (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto" />
-                <p className="text-gray-600 mt-2 text-sm">Loading more...</p>
+              <div className="flex items-center justify-center gap-3 py-8">
+                <div className="w-5 h-5 rounded-full border-2 border-primary-600 border-t-transparent animate-spin" />
+                <span className="text-sm text-neutral-500 font-medium">Loading more products…</span>
               </div>
             )}
 
+            {/* End of results */}
             {!hasNextPage && products.length > 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-600 text-sm">You've reached the end!</p>
+              <div className="text-center py-10">
+                <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-neutral-200 rounded-full shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-secondary-500 inline-block" />
+                  <span className="text-sm text-neutral-500 font-medium">
+                    All {products.length.toLocaleString()} products shown
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-secondary-500 inline-block" />
+                </div>
               </div>
             )}
           </>

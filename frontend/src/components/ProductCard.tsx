@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MapPin, Store } from 'lucide-react';
+import { Heart, MapPin, Store, ShoppingCart } from 'lucide-react';
 
 export type ProductImage = {
   id: number;
@@ -28,6 +28,7 @@ type Props = {
   onClick?: (id: number) => void;
   inWatchlist?: boolean;
   onToggleWatch?: (id: number) => void;
+  onAddToCart?: (id: number) => void;
 };
 
 /**
@@ -52,7 +53,7 @@ const formatPrice = (price: number) =>
     maximumFractionDigits: 0,
   }).format(price);
 
-export default function ProductCard({ product, onClick, inWatchlist, onToggleWatch }: Props) {
+export default function ProductCard({ product, onClick, inWatchlist, onToggleWatch, onAddToCart }: Props) {
   const imageUrl = resolveImageUrl(product);
 
   return (
@@ -113,9 +114,21 @@ export default function ProductCard({ product, onClick, inWatchlist, onToggleWat
           {product.name}
         </p>
 
-        <p className="text-primary-600 font-bold text-base mt-1">
-          {formatPrice(product.price || 0)}
-        </p>
+        <div className="flex items-end justify-between mt-1">
+          <p className="text-primary-600 font-bold text-base">
+            {formatPrice(product.price || 0)}
+          </p>
+          <button 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              if (onAddToCart) onAddToCart(product.id); 
+            }}
+            className="w-8 h-8 rounded-full bg-neutral-100 text-neutral-600 hover:bg-neutral-900 hover:text-white flex items-center justify-center transition-all duration-200 shadow-sm"
+            aria-label="Add to cart"
+          >
+            <ShoppingCart className="w-4 h-4" />
+          </button>
+        </div>
 
         <div className="mt-2.5 pt-2.5 border-t border-neutral-100 flex items-center justify-between gap-2">
           {product.vendor_name && (

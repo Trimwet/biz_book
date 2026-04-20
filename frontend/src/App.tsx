@@ -30,6 +30,7 @@ import VendorChats from './components/VendorChats';
 import { ChatProvider, useChat } from './contexts/ChatContext';
 import CommandPalette from './components/ui/CommandPalette';
 import BackendBanner from './components/BackendBanner';
+import BottomNav from './components/BottomNav';
 
 
 
@@ -70,86 +71,90 @@ function MobileMenu({ isOpen, toggleMenu }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [isOpen, toggleMenu]);
   
+  const navLinkClass = "flex items-center px-3 py-2.5 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 rounded-xl text-sm font-medium transition-all duration-200";
+  const iconWrapperClass = "w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center mr-3 text-neutral-600 shrink-0 transition-colors group-hover:bg-neutral-200 group-hover:text-neutral-900";
+
   return (
-    <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className={`fixed right-0 top-0 h-full w-72 bg-white shadow-lg transform transition-transform duration-200 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+    <div className={`fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-[100] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={toggleMenu}>
+      <div 
+        className={`fixed right-0 top-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <span className="text-lg font-semibold text-gray-900">Menu</span>
+          <div className="flex items-center justify-between p-4 pb-2">
+            <span className="text-lg font-bold text-neutral-900">Menu</span>
             <button 
               onClick={toggleMenu} 
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-8 h-8 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full flex items-center justify-center transition-colors shadow-sm"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <FiX className="w-4 h-4" />
             </button>
           </div>
 
           {/* User Info */}
           {user && (
-            <div className="p-4 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
+            <div className="p-4 pt-2 pb-4 border-b border-neutral-100">
+              <div className="flex items-center space-x-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100">
+                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-inner shrink-0">
+                  <span className="text-white text-base font-bold">
                     {user?.email?.charAt(0)?.toUpperCase() || 'U'}
                   </span>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user.user_type}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-neutral-900 truncate">{user.email}</p>
+                  <div className="mt-0.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 uppercase tracking-wide">
+                      {user.user_type}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
           
           {/* Navigation */}
-          <nav className="flex-1 p-4 overflow-y-auto">
+          <nav className="flex-1 px-3 py-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="space-y-1">
               {user ? (
                 <>
                   <Link 
                     to={user.user_type === 'vendor' ? '/vendor/dashboard' : '/shopper/dashboard'} 
                     onClick={toggleMenu} 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    className={`group ${navLinkClass}`}
                   >
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
+                    <div className={iconWrapperClass}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                    </div>
                     <span>Home</span>
                   </Link>
                   
                   {user.user_type === 'vendor' && (
                     <>
-                      <Link 
-                        to="/vendor/products" 
-                        onClick={toggleMenu} 
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
+                      <Link to="/vendor/products" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        </div>
                         <span>Products</span>
                       </Link>
-                      <Link 
-                        to="/vendor/analytics" 
-                        onClick={toggleMenu} 
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
+                      <Link to="/vendor/analytics" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                        </div>
                         <span>Analytics</span>
                       </Link>
-                      <Link 
-                        to="/vendor/chats" 
-                        onClick={toggleMenu} 
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V6a2 2 0 012-2h8l6 6v8a2 2 0 01-2 2z" />
-                        </svg>
+                      <Link to="/vendor/chats" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V6a2 2 0 012-2h8l6 6v8a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
                         <span>Chats</span>
                       </Link>
                     </>
@@ -157,140 +162,118 @@ function MobileMenu({ isOpen, toggleMenu }) {
                   
                   {user.user_type === 'shopper' && (
                     <>
-                      <Link
-                        to="/browse"
-                        onClick={toggleMenu}
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
+                      <Link to="/browse" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                          </svg>
+                        </div>
                         <span>Browse Products</span>
                       </Link>
-                      <Link
-                        to="/search"
-                        onClick={toggleMenu}
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                      <Link to="/search" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
                         <span>Search</span>
                       </Link>
-                      <Link
-                        to="/watchlist"
-                        onClick={toggleMenu}
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
+                      <Link to="/watchlist" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </div>
                         <span>Watchlist</span>
                       </Link>
-                      <Link 
-                        to="/alerts" 
-                        onClick={toggleMenu} 
-                        className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM4 19h6v-2H4v2zM4 15h8v-2H4v2zM4 11h10V9H4v2z" />
-                        </svg>
+                      <Link to="/alerts" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                        <div className={iconWrapperClass}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM4 19h6v-2H4v2zM4 15h8v-2H4v2zM4 11h10V9H4v2z" />
+                          </svg>
+                        </div>
                         <span>Alerts</span>
                       </Link>
                     </>
                   )}
                   
-                  <div className="border-t border-gray-200 my-3"></div>
+                  <div className="border-t border-neutral-100 my-2 mx-2"></div>
                   
-                  <Link 
-                    to="/profile" 
-                    onClick={toggleMenu} 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                  <Link to="/profile" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                    <div className={iconWrapperClass}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
                     <span>Profile</span>
                   </Link>
                   
-                  <Link 
-                    to="/social" 
-                    onClick={toggleMenu} 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                  <Link to="/social" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                    <div className={iconWrapperClass}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
                     <span>Community</span>
                   </Link>
                 </>
               ) : (
                 <>
-                  <Link 
-                    to="/" 
-                    onClick={toggleMenu} 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
+                  <Link to="/" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                    <div className={iconWrapperClass}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                    </div>
                     <span>Home</span>
                   </Link>
-                  <Link 
-                    to="/login" 
-                    onClick={toggleMenu} 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                    </svg>
+                  <Link to="/login" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                    <div className={iconWrapperClass}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                      </svg>
+                    </div>
                     <span>Login</span>
                   </Link>
-                  <Link 
-                    to="/signup" 
-                    onClick={toggleMenu} 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
+                  <Link to="/signup" onClick={toggleMenu} className={`group ${navLinkClass}`}>
+                    <div className={iconWrapperClass}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                    </div>
                     <span>Sign Up</span>
                   </Link>
                 </>
               )}
             </div>
           </nav>
+          
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-neutral-100 bg-white">
             {user ? (
               <button 
                 onClick={() => {
                   toggleMenu();
                   logoutWithConfirmation();
                 }}
-                className="w-full flex items-center justify-center px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                className="w-full flex items-center justify-center px-3 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span>Logout</span>
+                <FiLogOut className="w-4 h-4 mr-2" />
+                <span>Log Out</span>
               </button>
             ) : (
               <Link 
                 to="/signup" 
                 onClick={toggleMenu} 
-                className="w-full flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="w-full flex items-center justify-center px-3 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-                <span>Get Started</span>
+                <span>Get Started Free</span>
               </Link>
             )}
           </div>
-          </div>
         </div>
       </div>
+    </div>
   );
 }
 
@@ -701,9 +684,9 @@ function Navigation() {
 
   return (
     <>
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      <nav className="bg-white/90 backdrop-blur-lg border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14">
             {/* Logo */}
             <Link to="/" className="flex-shrink-0">
               <Logo size="default" />
@@ -879,6 +862,7 @@ function App() {
         <Navigation />
         <BackendBanner />
         <CommandPalette />
+        <BottomNav />
         
         <main id="main-content">
           <Routes>
@@ -887,8 +871,8 @@ function App() {
           </Route>
           <Route element={<GuestOnly />}>
             <Route path="/signup" element={<SignupChoice />} />
-            <Route path="/signup/vendor" element={<VendorSignup />} />
-            <Route path="/signup/shopper" element={<ShopperSignup />} />
+            <Route path="/signup/vendor" element={<SignupChoice />} />
+            <Route path="/signup/shopper" element={<SignupChoice />} />
             <Route path="/login" element={<Login />} />
           </Route>
           <Route element={<RequireVendor />}>

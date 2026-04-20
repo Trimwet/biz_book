@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 import Logo from './Logo';
-import config from '../config';
+import {
+  Eye,
+  EyeSlash,
+  EnvelopeSimple,
+  Lock,
+  ShieldCheck,
+  ArrowRight,
+  GoogleLogo,
+} from '@phosphor-icons/react';
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,10 +21,7 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError('');
   };
 
@@ -27,12 +29,8 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
-      // Use the UserContext login function which handles token storage
       const data = await login(formData.email, formData.password);
-      
-      // Navigate based on user type
       if (data?.user?.user_type === 'vendor') {
         navigate('/vendor/dashboard');
       } else {
@@ -40,7 +38,6 @@ const Login = () => {
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
-      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -48,82 +45,84 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-white flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-white">
-        <div className="max-w-md text-center">
+      {/* Left — Branding panel */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-white relative overflow-hidden">
+        {/* Decorative blob */}
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-blue-100/60 blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-sm text-center px-8">
           <div className="mb-8">
             <Logo size="xlarge" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Business, simplified
+
+          <h1 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">
+            Welcome back
           </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Compare across verified vendors, track prices, and connect directly.
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            Your campus marketplace awaits. Compare prices, chat with vendors, and shop smarter.
           </p>
-          <div className="mt-6 grid grid-cols-2 gap-3 text-left">
-            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-800 text-sm">Compare prices across vendors</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-800 text-sm">Smart price alerts and tracking</span>
-            </div>
-            <div className="col-span-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-800 text-sm">Verified reviews and ratings</span>
-            </div>
+
+          <div className="space-y-2.5 text-left">
+            {[
+              'Compare prices across campus vendors',
+              'Smart price alerts & tracking',
+              'Verified reviews from students',
+            ].map((f) => (
+              <div
+                key={f}
+                className="flex items-center gap-3 rounded-xl bg-white/80 border border-gray-100 px-4 py-2.5"
+              >
+                <ShieldCheck size={16} weight="fill" className="text-blue-500 flex-shrink-0" />
+                <span className="text-sm text-gray-700">{f}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          {/* Mobile Logo */}
-          <div className="lg:hidden text-center">
+      {/* Right — Login form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-5 sm:px-8 py-12">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
             <Logo size="large" />
           </div>
-          
-          <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-bold text-gray-900">
-              Sign In
-            </h2>
-            <p className="mt-2 text-gray-600">
-              Continue to your dashboard
-            </p>
+
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Sign in</h2>
+            <p className="mt-1.5 text-sm text-gray-500">Continue to your dashboard</p>
           </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
+          <form className="space-y-5" onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                aria-invalid={!!error}
-                placeholder="Enter your email"
-              />
+              <div className="relative">
+                <EnvelopeSimple size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-[15px]"
+                  aria-invalid={!!error}
+                  placeholder="you@university.edu"
+                />
+              </div>
             </div>
 
+            {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Password
               </label>
               <div className="relative">
+                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   id="password"
                   name="password"
@@ -132,102 +131,85 @@ const Login = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-[15px]"
                   aria-invalid={!!error}
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
+            {/* Error */}
             {error && (
-              <div id="login-error" role="alert" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div id="login-error" role="alert" className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm">
                 {error}
               </div>
             )}
 
+            {/* Remember + Forgot */}
             <div className="flex items-center justify-between">
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              <label className="inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 Remember me
               </label>
               <button
                 type="button"
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                 onClick={() => window.location.assign('/forgot')}
               >
                 Forgot password?
               </button>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing In...
-                </span>
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Signing in…
+                </>
               ) : (
-                'Sign In'
+                <>
+                  Sign In
+                  <ArrowRight size={16} weight="bold" />
+                </>
               )}
             </button>
 
-            {/* Alt sign-in placeholder */}
-            <div className="mt-4">
-              <button type="button" className="w-full border border-gray-200 rounded-lg py-2.5 hover:bg-gray-50 text-gray-700">
-                Continue with Google
-              </button>
-            </div>
-            {/* Divider */}
-            <div className="mt-6">
-              <div className="relative flex items-center">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="px-3 text-xs text-gray-500">or</span>
-                <div className="flex-1 h-px bg-gray-200" />
-              </div>
-            </div>
+            {/* Google */}
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-2.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
+            >
+              <GoogleLogo size={18} weight="bold" />
+              Continue with Google
+            </button>
           </form>
 
-          <div className="text-center">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">New to BIZ BOOK?</span>
-              </div>
+          {/* Divider */}
+          <div className="mt-8">
+            <div className="relative flex items-center">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="px-3 text-xs text-gray-400">New to BIZ BOOK?</span>
+              <div className="flex-1 h-px bg-gray-200" />
             </div>
-            <div className="mt-4">
-              <Link 
-                to="/signup" 
-                className="text-blue-600 hover:text-blue-500 font-medium transition-colors"
-              >
-                Create your account
+            <div className="mt-4 text-center">
+              <Link to="/signup" className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                Create your free account
               </Link>
             </div>
           </div>
-
         </div>
       </div>
     </div>

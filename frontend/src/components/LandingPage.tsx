@@ -1,359 +1,373 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
-import { 
-  FiSearch
-} from 'react-icons/fi';
+import {
+  MagnifyingGlass,
+  ArrowRight,
+  ShieldCheck,
+  Storefront,
+  ChatCircle,
+  TrendUp,
+  BookOpen,
+  DeviceMobile,
+  TShirt,
+  Hamburger,
+  Laptop,
+  Wrench,
+} from '@phosphor-icons/react';
 import AnimatedCounter from './AnimatedCounter';
-import Logo from './Logo';
 import Footer from './Footer';
 
-// Hero Section Component
-const HeroSection: React.FC = () => {
+/* ── Category data ─────────────────────────────────────────────────────────── */
+const categories = [
+  { label: 'Textbooks', icon: BookOpen },
+  { label: 'Gadgets', icon: DeviceMobile },
+  { label: 'Fashion', icon: TShirt },
+  { label: 'Food', icon: Hamburger },
+  { label: 'Laptops', icon: Laptop },
+  { label: 'Services', icon: Wrench },
+];
+
+/* ── Hero ───────────────────────────────────────────────────────────────────── */
+function Hero() {
   const navigate = useNavigate();
   const { user } = useUser();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [q, setQ] = useState('');
 
-  const handleSearch = () => {
-    const query = searchQuery.trim();
-    if (query.length > 0) {
-      navigate(`/search?query=${encodeURIComponent(query)}`);
-    } else {
-      navigate('/search');
-    }
+  const go = () => {
+    const t = q.trim();
+    navigate(t ? `/search?query=${encodeURIComponent(t)}` : '/search');
   };
 
-  const trendingCategories = ['Electronics', 'Phones', 'Appliances', 'Fashion', 'Computers'];
-
   return (
-    <section className="relative bg-white overflow-hidden">
-      {/* Subtle background decorative elements - keeping your original style */}
-      <div className="absolute -top-24 -left-24 w-[520px] h-[520px] rounded-full bg-primary-100 blur-3xl opacity-50 pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-secondary-100 blur-3xl opacity-50 pointer-events-none" />
-      
-      <div className="max-w-6xl mx-auto px-6 py-20 relative">
+    <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/60 to-white">
+      {/* Decorative blobs */}
+      <div className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full bg-blue-100/50 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-[420px] h-[420px] rounded-full bg-blue-50/60 blur-3xl pointer-events-none" />
+
+      <div className="relative max-w-5xl mx-auto px-5 pt-16 pb-14 sm:pt-24 sm:pb-20">
         <div className="text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-8">
-            <Logo size="xlarge" />
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs font-medium text-blue-700">Your campus marketplace</span>
           </div>
-          
-          {/* Main Headline - keeping your original structure */}
-          <h1 className="text-4xl md:text-6xl font-bold text-neutral-900 mb-6 leading-tight">
-            Where Business{' '}
-            <span className="text-primary-600">Connects</span>
+
+          {/* Headline */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-[1.1] tracking-tight mb-5">
+            Shop close.{' '}
+            <span className="text-blue-600">Sell smart.</span>
           </h1>
-          
-          {/* Subtitle - enhanced with better typography */}
-          <p className="text-xl text-neutral-600 mb-8 max-w-3xl mx-auto leading-relaxed font-primary">
-            The professional marketplace connecting serious shoppers with trusted vendors. 
-            Make informed decisions with transparent pricing and verified reviews.
+
+          <p className="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed mb-8">
+            The marketplace built for university communities. Find what you need from
+            verified vendors right on your campus.
           </p>
-          
-          {/* CTA Buttons - subtle Apple-style enhancements */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+          {/* CTA */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
             <button
-              onClick={() => navigate(user ? (user.user_type === 'vendor' ? '/vendor/dashboard' : '/shopper/dashboard') : '/signup')}
-              className="bg-primary-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-primary-700 transition-all duration-200 hover:shadow-lg"
+              onClick={() =>
+                navigate(
+                  user
+                    ? user.user_type === 'vendor'
+                      ? '/vendor/dashboard'
+                      : '/shopper/dashboard'
+                    : '/signup'
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-blue-700 transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/20 text-[15px]"
             >
-              {user ? 'Go to Dashboard' : 'Get Started'}
+              {user ? 'Go to Dashboard' : 'Get Started — it\'s free'}
+              <ArrowRight size={18} weight="bold" />
             </button>
             <button
               onClick={() => navigate('/browse')}
-              className="border-2 border-neutral-300 text-neutral-700 px-8 py-4 rounded-xl font-semibold hover:border-neutral-400 hover:bg-neutral-50 transition-all duration-200"
+              className="inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-7 py-3.5 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 text-[15px]"
             >
-              Explore Marketplace
+              Browse Marketplace
             </button>
           </div>
 
-          {/* Search Bar - keeping your original inline style with subtle enhancements */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-xl px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <FiSearch className="w-5 h-5 text-neutral-400" />
+          {/* Search */}
+          <div className="max-w-xl mx-auto">
+            <div className="flex items-center bg-white border border-gray-200 rounded-2xl px-4 py-2.5 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 focus-within:border-blue-300 focus-within:shadow-md focus-within:shadow-blue-100">
+              <MagnifyingGlass className="w-5 h-5 text-gray-400 flex-shrink-0" />
               <input
-                className="flex-1 outline-none py-2 text-neutral-900 placeholder-neutral-400 font-primary"
-                placeholder="Search products, vendors, categories…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+                className="flex-1 outline-none px-3 py-1.5 text-gray-900 placeholder-gray-400 bg-transparent text-[15px]"
+                placeholder="Search products, vendors…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && go()}
               />
-              <button 
-                onClick={handleSearch} 
-                className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm hover:bg-neutral-800 transition-colors duration-200"
+              <button
+                onClick={go}
+                className="px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
               >
                 Search
               </button>
             </div>
           </div>
-
-          {/* Trending Categories - keeping your original style */}
-          <div className="mt-6 flex flex-wrap gap-2 justify-center">
-            {trendingCategories.map((category) => (
-              <button
-                key={category}
-                className="px-3 py-1.5 rounded-full border border-neutral-200 text-sm text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-all duration-200"
-                onClick={() => navigate(`/search?query=${encodeURIComponent(category)}`)}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </section>
   );
-};
+}
 
-// Trust Indicators Section
-const TrustIndicators: React.FC = () => {
-  return (
-    <section className="bg-neutral-50 py-8">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary-600 mb-1">
-              <AnimatedCounter target={5000} duration={2000} />+
-            </div>
-            <p className="text-neutral-700 font-medium">Verified Products</p>
-            <p className="text-sm text-neutral-500 mt-1">Quality assured inventory</p>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-primary-600 mb-2">
-              <AnimatedCounter target={1200} duration={2000} />+
-            </div>
-            <p className="text-neutral-700 font-medium">Trusted Vendors</p>
-            <p className="text-sm text-neutral-500 mt-1">Vetted business partners</p>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-primary-600 mb-2">
-              <AnimatedCounter target={24000} duration={2000} />+
-            </div>
-            <p className="text-neutral-700 font-medium">Customer Reviews</p>
-            <p className="text-sm text-neutral-500 mt-1">Authentic feedback</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-
-// Dual Value Proposition
-const ValueProposition: React.FC = () => {
+/* ── Categories ────────────────────────────────────────────────────────────── */
+function Categories() {
   const navigate = useNavigate();
-  const { user } = useUser();
-
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">
-            Built for Both Sides of Business
-          </h2>
-          <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
-            Whether you're shopping smart or selling better, our platform provides the tools you need to succeed.
-          </p>
+    <section className="py-10 bg-white">
+      <div className="max-w-5xl mx-auto px-5">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-gray-900">Popular on campus</h2>
+          <button
+            onClick={() => navigate('/browse')}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            View all →
+          </button>
         </div>
-        
-        <div className="grid md:grid-cols-2 gap-10">
-          {/* For Shoppers */}
-          <div className="bg-primary-50/60 border border-primary-100 p-8 rounded-xl hover:shadow-lg transition-shadow duration-200">
-            <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-neutral-900 mb-4">For Smart Shoppers</h3>
-            <p className="text-neutral-700 mb-6">
-              Make confident purchasing decisions with comprehensive product comparisons, 
-              real customer reviews, and price tracking across multiple vendors.
-            </p>
-            <ul className="space-y-3">
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-primary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Advanced search and filtering
-              </li>
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-primary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Side-by-side price comparison
-              </li>
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-primary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Price alerts and watchlists
-              </li>
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-primary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Verified customer reviews
-              </li>
-            </ul>
-            {!user && (
-              <button 
-                onClick={() => navigate('/signup/shopper')}
-                className="mt-6 w-full bg-primary-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200"
-              >
-                Join as Shopper
-              </button>
-            )}
-          </div>
-          
-          {/* For Vendors */}
-          <div className="bg-secondary-50/60 border border-secondary-100 p-8 rounded-xl hover:shadow-lg transition-shadow duration-200">
-            <div className="w-16 h-16 bg-secondary-600 rounded-xl flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-neutral-900 mb-4">For Trusted Vendors</h3>
-            <p className="text-neutral-700 mb-6">
-              Grow your business with powerful analytics, customer insights, and direct access 
-              to motivated buyers actively comparing your products.
-            </p>
-            <ul className="space-y-3">
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-secondary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Professional product listings
-              </li>
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-secondary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Sales analytics and insights
-              </li>
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-secondary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Customer review management
-              </li>
-              <li className="flex items-center text-neutral-700">
-                <svg className="w-5 h-5 text-secondary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Competitive market analysis
-              </li>
-            </ul>
-            {!user && (
-              <button 
-                onClick={() => navigate('/signup/vendor')}
-                className="mt-6 w-full bg-secondary-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-secondary-700 transition-colors duration-200"
-              >
-                Join as Vendor
-              </button>
-            )}
-          </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          {categories.map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              onClick={() => navigate(`/search?query=${encodeURIComponent(label)}`)}
+              className="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-blue-50 hover:border-blue-100 transition-all duration-200"
+            >
+              <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 flex items-center justify-center group-hover:bg-blue-100 group-hover:border-blue-200 transition-all duration-200">
+                <Icon size={22} className="text-gray-500 group-hover:text-blue-600 transition-colors" />
+              </div>
+              <span className="text-xs font-medium text-gray-600 group-hover:text-blue-700 transition-colors">{label}</span>
+            </button>
+          ))}
         </div>
       </div>
     </section>
   );
-};
+}
 
-// How It Works Section
-const HowItWorks: React.FC = () => {
-  const steps = [
-    {
-      number: '1',
-      title: 'Discover',
-      description: 'Browse verified products from trusted vendors or search with advanced filters to find exactly what you need.'
-    },
-    {
-      number: '2',
-      title: 'Compare',
-      description: 'View detailed comparisons across multiple vendors, read authentic reviews, and analyze pricing trends.'
-    },
-    {
-      number: '3',
-      title: 'Connect',
-      description: 'Connect directly with vendors, make informed purchasing decisions, and build lasting business relationships.'
-    }
-  ];
-
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+function Stats() {
   return (
-    <section className="py-12 bg-neutral-50">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">
-            How BIZ BOOK Works
-          </h2>
-          <p className="text-lg text-neutral-600">
-            Simple, transparent, and professional marketplace experience
-          </p>
-        </div>
-        
-        <div className="grid md:grid-cols-3 gap-8">
-          {steps.map((step, index) => (
-            <div key={index} className="text-center">
-              <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl font-bold text-white">{step.number}</span>
+    <section className="py-10 bg-gray-50/70">
+      <div className="max-w-5xl mx-auto px-5">
+        <div className="grid grid-cols-3 gap-6">
+          {[
+            { value: 5000, label: 'Products', sub: 'Verified listings' },
+            { value: 1200, label: 'Vendors', sub: 'Trusted sellers' },
+            { value: 24000, label: 'Reviews', sub: 'Real feedback' },
+          ].map((s) => (
+            <div key={s.label} className="text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-0.5">
+                <AnimatedCounter target={s.value} duration={2000} />+
               </div>
-              <h3 className="text-xl font-bold text-neutral-900 mb-3">{step.title}</h3>
-              <p className="text-neutral-600">
-                {step.description}
-              </p>
+              <p className="text-sm font-medium text-gray-800">{s.label}</p>
+              <p className="text-xs text-gray-400 mt-0.5 hidden sm:block">{s.sub}</p>
             </div>
           ))}
         </div>
       </div>
     </section>
   );
-};
+}
 
-// Final CTA Section
-const FinalCTA: React.FC = () => {
+/* ── Value Proposition ─────────────────────────────────────────────────────── */
+function ValueProp() {
   const navigate = useNavigate();
   const { user } = useUser();
 
+  const cards = [
+    {
+      title: 'For Shoppers',
+      desc: 'Compare prices, read real reviews, set price alerts, and find the best deals from vendors near you.',
+      features: ['Smart price comparison', 'Verified reviews', 'Price alerts & watchlist', 'Direct vendor chat'],
+      cta: 'Join as Shopper',
+      ctaPath: '/signup/shopper',
+      accent: 'blue',
+      icon: MagnifyingGlass,
+    },
+    {
+      title: 'For Vendors',
+      desc: 'Open your Vendor Space and reach students actively looking to buy. Manage listings, track sales, and grow.',
+      features: ['Free product listings', 'Sales analytics', 'Customer messaging', 'Vendor Space profile'],
+      cta: 'Open your Vendor Space',
+      ctaPath: '/signup/vendor',
+      accent: 'green',
+      icon: Storefront,
+    },
+  ];
+
   return (
-    <section className="py-16 bg-white border-t border-neutral-200">
-      <div className="max-w-4xl mx-auto px-6 text-center">
-        <h3 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-4">
-          Ready to Transform Your Business Experience?
-        </h3>
-        <p className="text-lg text-neutral-600 mb-8">
-          Join thousands of professionals who trust BIZ BOOK for their marketplace needs.
-        </p>
-        {!user && (
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => navigate('/signup')}
-              className="bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200"
-            >
-              Get Started Today
-            </button>
-            <button
-              onClick={() => navigate('/browse')}
-              className="border-2 border-neutral-300 text-neutral-700 px-8 py-4 rounded-lg font-semibold hover:border-neutral-400 hover:bg-neutral-50 transition-colors duration-200"
-            >
-              Browse Marketplace
-            </button>
-          </div>
-        )}
+    <section className="py-16 bg-white">
+      <div className="max-w-5xl mx-auto px-5">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+            Built for campus life
+          </h2>
+          <p className="text-gray-500 max-w-lg mx-auto">
+            Whether you're shopping smart or building your business, we've got you covered.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {cards.map((c) => {
+            const isBlue = c.accent === 'blue';
+            return (
+              <div
+                key={c.title}
+                className={`p-6 sm:p-8 rounded-2xl border transition-all duration-200 hover:shadow-lg ${
+                  isBlue
+                    ? 'bg-blue-50/40 border-blue-100 hover:border-blue-200'
+                    : 'bg-green-50/40 border-green-100 hover:border-green-200'
+                }`}
+              >
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${
+                    isBlue ? 'bg-blue-600' : 'bg-green-600'
+                  }`}
+                >
+                  <c.icon size={24} className="text-white" weight="fill" />
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{c.title}</h3>
+                <p className="text-sm text-gray-600 mb-5 leading-relaxed">{c.desc}</p>
+
+                <ul className="space-y-2 mb-6">
+                  {c.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2.5 text-sm text-gray-700">
+                      <ShieldCheck
+                        size={16}
+                        weight="fill"
+                        className={isBlue ? 'text-blue-500' : 'text-green-500'}
+                      />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {!user && (
+                  <button
+                    onClick={() => navigate(c.ctaPath)}
+                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                      isBlue
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {c.cta}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
-};
+}
 
-// Main Landing Page Component
-const LandingPage: React.FC = () => {
+/* ── How It Works ──────────────────────────────────────────────────────────── */
+function HowItWorks() {
+  const steps = [
+    {
+      num: '01',
+      title: 'Discover',
+      desc: 'Browse verified products or search for exactly what you need with smart filters.',
+      icon: MagnifyingGlass,
+    },
+    {
+      num: '02',
+      title: 'Compare',
+      desc: 'See prices across vendors, read reviews, and track price changes over time.',
+      icon: TrendUp,
+    },
+    {
+      num: '03',
+      title: 'Connect',
+      desc: 'Chat directly with vendors, ask questions, and build trusted relationships.',
+      icon: ChatCircle,
+    },
+  ];
+
+  return (
+    <section className="py-16 bg-gray-50/70">
+      <div className="max-w-5xl mx-auto px-5">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+            How it works
+          </h2>
+          <p className="text-gray-500">Three steps to smarter shopping</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {steps.map((s) => (
+            <div
+              key={s.num}
+              className="relative bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md hover:border-gray-200 transition-all duration-200"
+            >
+              <span className="text-xs font-bold text-blue-400 tracking-widest">{s.num}</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mt-3 mb-4">
+                <s.icon size={20} className="text-blue-600" weight="duotone" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{s.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Final CTA ─────────────────────────────────────────────────────────────── */
+function FinalCTA() {
+  const navigate = useNavigate();
+  const { user } = useUser();
+
+  if (user) return null;
+
+  return (
+    <section className="py-16 bg-white">
+      <div className="max-w-3xl mx-auto px-5 text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+          Ready to join your campus marketplace?
+        </h2>
+        <p className="text-gray-500 mb-8 max-w-md mx-auto">
+          Create your free account and start shopping or selling today.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => navigate('/signup')}
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3.5 rounded-xl font-semibold hover:bg-blue-700 transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/20"
+          >
+            Get Started Free
+            <ArrowRight size={18} weight="bold" />
+          </button>
+          <button
+            onClick={() => navigate('/browse')}
+            className="inline-flex items-center justify-center bg-white border border-gray-200 text-gray-700 px-8 py-3.5 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200"
+          >
+            Explore Products
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Main Landing ──────────────────────────────────────────────────────────── */
+export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      <HeroSection />
-      <TrustIndicators />
-      <ValueProposition />
+      <Hero />
+      <Categories />
+      <Stats />
+      <ValueProp />
       <HowItWorks />
       <FinalCTA />
       <Footer />
     </div>
   );
-};
-
-export default LandingPage;
+}

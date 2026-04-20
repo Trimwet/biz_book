@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../hooks/useUser';
 import {
-  User, Mail, Phone, MapPin, Globe, Building, FileText, Shield,
-  Eye, EyeOff, Camera, Save, Lock, ShoppingBag, Store, Sparkles,
-  Edit3, Check, X, AlertCircle, CheckCircle
+  User, Mail, Building, Shield,
+  Eye, EyeOff, Camera, Save, ShoppingBag, Store,
+  AlertCircle, CheckCircle
 } from 'lucide-react';
 import config from '../config';
 
 // 👤 USER PROFILE MANAGEMENT - Clean, minimal profile editing for both shoppers and vendors
 const UserProfile = () => {
-  const { user, login } = useUser();
+  const { user, getProfile } = useUser();
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
   // Avatar upload states
-  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   
   // Password visibility states
   const [showPasswords, setShowPasswords] = useState({
@@ -33,10 +33,10 @@ const UserProfile = () => {
 
   // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmAction, setConfirmAction] = useState<{action: () => void, title: string, message: string} | null>(null);
 
   // Toggle password visibility
-  const togglePasswordVisibility = (field) => {
+  const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
     setShowPasswords(prev => ({
       ...prev,
       [field]: !prev[field]
@@ -44,8 +44,8 @@ const UserProfile = () => {
   };
 
   // Handle avatar file selection
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         setMessage({ type: 'error', text: 'Avatar file size must be less than 5MB' });
@@ -58,13 +58,13 @@ const UserProfile = () => {
       }
 
       const reader = new FileReader();
-      reader.onload = (e) => setAvatarPreview(e.target.result);
+      reader.onload = (e) => setAvatarPreview(e.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
 
   // Calculate password strength
-  const calculatePasswordStrength = (password) => {
+  const calculatePasswordStrength = (password: string) => {
     let score = 0;
     let feedback = '';
     let color = 'gray';
@@ -99,7 +99,7 @@ const UserProfile = () => {
   };
 
   // Show confirmation modal
-  const showConfirmation = (action, title, message) => {
+  const showConfirmation = (action: () => void, title: string, message: string) => {
     setConfirmAction({ action, title, message });
     setShowConfirmModal(true);
   };
@@ -173,7 +173,7 @@ const UserProfile = () => {
   }, [passwordData.newPassword]);
 
   // 💾 Update personal information
-  const handlePersonalInfoUpdate = async (e) => {
+  const handlePersonalInfoUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
@@ -193,7 +193,7 @@ const UserProfile = () => {
 
       if (response.ok) {
         // Update user context with new data
-        login(data.user, token);
+        await getProfile();
         setMessage({ type: 'success', text: 'Personal information updated successfully!' });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to update profile' });
@@ -206,7 +206,7 @@ const UserProfile = () => {
   };
 
   // 🏪 Update vendor information
-  const handleVendorInfoUpdate = async (e) => {
+  const handleVendorInfoUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
@@ -226,7 +226,7 @@ const UserProfile = () => {
 
       if (response.ok) {
         // Update user context with new vendor data
-        login(data.user, token);
+        await getProfile();
         setMessage({ type: 'success', text: 'Business information updated successfully!' });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to update business profile' });
@@ -239,7 +239,7 @@ const UserProfile = () => {
   };
 
   // 🔐 Change password
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -313,12 +313,12 @@ const UserProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Profile Header */}
-        <div className="bg-white border border-gray-200 mb-8">
+        <div className="bg-white border border-gray-100 rounded-2xl mb-6 overflow-hidden">
           <div className="px-6 py-8">
             <div className="flex flex-col sm:flex-row items-start gap-6">
               {/* Avatar Section */}
               <div className="relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-blue-50 border border-blue-100">
                   {avatarPreview ? (
                     <img 
                       src={avatarPreview} 
@@ -326,8 +326,8 @@ const UserProfile = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-xl font-semibold text-gray-600">
+                    <div className="w-full h-full bg-blue-50 flex items-center justify-center">
+                      <span className="text-xl font-semibold text-blue-600">
                         {(() => {
                           if (user.user_type === 'vendor' && user.vendor_profile?.business_name) {
                             return user.vendor_profile.business_name[0].toUpperCase();
@@ -347,7 +347,7 @@ const UserProfile = () => {
                 </div>
                 
                 {/* Upload Button */}
-                <label className="absolute bottom-0 right-0 bg-white border border-gray-200 rounded-full p-1.5 cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="absolute -bottom-1 -right-1 bg-white border border-gray-200 rounded-xl p-1.5 cursor-pointer hover:bg-gray-50 transition-colors shadow-sm">
                   <Camera className="w-4 h-4 text-gray-600" />
                   <input
                     type="file"
@@ -378,21 +378,21 @@ const UserProfile = () => {
                   <span className="text-sm">{user.email}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-md">
+                  <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-lg">
                     {user.user_type === 'vendor' ? (
                       <>
-                        <Store className="w-4 h-4 mr-1" />
-                        Vendor
+                        <Store className="w-4 h-4 mr-1.5" />
+                        Vendor Space
                       </>
                     ) : (
                       <>
-                        <ShoppingBag className="w-4 h-4 mr-1" />
+                        <ShoppingBag className="w-4 h-4 mr-1.5" />
                         Shopper
                       </>
                     )}
                   </span>
-                  <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 text-xs rounded-md">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                  <span className="inline-flex items-center px-2.5 py-1 bg-green-50 text-green-600 text-xs rounded-lg font-medium">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></div>
                     Active
                   </span>
                 </div>
@@ -420,15 +420,15 @@ const UserProfile = () => {
         )}
 
         {/* Tab Navigation */}
-        <div className="bg-white border border-gray-200 mb-8">
+        <div className="bg-white border border-gray-100 rounded-2xl mb-6 overflow-hidden">
           <div className="border-b border-gray-200">
             <nav className="flex">
               <button
                 onClick={() => setActiveTab('personal')}
-                className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
                   activeTab === 'personal'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/30'
+                    : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
@@ -440,25 +440,25 @@ const UserProfile = () => {
               {user.user_type === 'vendor' && (
                 <button
                   onClick={() => setActiveTab('business')}
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
                     activeTab === 'business'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/30'
+                      : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
                   <div className="flex items-center justify-center gap-2">
                     <Building className="w-4 h-4" />
-                    <span>Business Info</span>
+                    <span>Vendor Space</span>
                   </div>
                 </button>
               )}
               
               <button
                 onClick={() => setActiveTab('security')}
-                className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
                   activeTab === 'security'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/30'
+                    : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">

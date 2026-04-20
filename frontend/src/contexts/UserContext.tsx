@@ -12,6 +12,8 @@ export interface AppUser {
   created_at?: string;
   vendor_profile?: Record<string, any>;
   shopper_profile?: Record<string, any>;
+  phone?: string | null;
+  avatar?: string | null;
 }
 
 interface UserContextValue {
@@ -79,7 +81,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (!response.ok) {
-        // Only hard-fail if the server explicitly rejects
+        if (response.status === 401 || response.status === 403) {
+          setAccessToken(null);
+          setRefreshToken(null);
+          setUser(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user');
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+          }
+        }
         throw new Error(`Failed to refresh token: ${response.status}`);
       }
 
@@ -88,13 +99,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       // Update tokens in state and localStorage
       setAccessToken(data.accessToken);
       setRefreshToken(data.refreshToken);
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
       
       return data.accessToken;
     } catch (error) {
-      console.error('Token refresh failed (non-fatal):', error);
-      // Do not auto-logout on transient errors; let caller decide.
+      console.error('Token refresh failed:', error);
       throw error;
     }
   };

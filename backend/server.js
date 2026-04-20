@@ -72,6 +72,9 @@ async function connectDB() {
     await pool.query('ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE').catch(()=>{});
     await pool.query('UPDATE users SET is_active=TRUE WHERE is_active IS NULL').catch(()=>{});
     await pool.query("ALTER TABLE IF EXISTS products ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'draft'").catch(()=>{});
+    // Unified accounts: can_sell flag
+    await pool.query('ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS can_sell BOOLEAN NOT NULL DEFAULT false').catch(()=>{});
+    await pool.query("UPDATE users SET can_sell = true WHERE user_type = 'vendor' AND can_sell = false").catch(()=>{});
     const VIEWS=['vendor_sales_summary','category_price_stats','daily_search_trends','product_view_counts'];
     const refreshViews=async()=>{ for(const v of VIEWS) await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY '+v).catch(()=>{}); };
     setTimeout(refreshViews,10000);

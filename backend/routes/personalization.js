@@ -2,9 +2,24 @@
 
 const { pool } = require('../utils');
 const xss = require('xss');
+const jwt = require('jsonwebtoken');
 const sanitize = (v) => (typeof v === 'string' ? xss(v.trim()) : v);
 
 const ALLOWED_EVENTS = ['view_item', 'add_watchlist', 'open_chat', 'search_query', 'click_recommendation'];
+
+function resolveUserId(request) {
+  const authHeader = request.headers?.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.slice('Bearer '.length).trim();
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET);
+    return payload?.userId || null;
+  } catch (_) {
+    return null;
+  }
+}
 
 async function personalizationRoutes(fastify) {
   fastify.post('/events', async (request, reply) => {
@@ -14,7 +29,7 @@ async function personalizationRoutes(fastify) {
       const eventType = sanitize(type);
       if (!ALLOWED_EVENTS.includes(eventType)) return reply.code(400).send({ error: 'Unsupported event type' });
 
-      const userId = request.user?.userId || null;
+      const userId = resolveUserId(request) || request.user?.userId || null;
       const product_id = Number.isFinite(parseInt(productId)) ? parseInt(productId) : null;
       const meta = metadata && typeof metadata === 'object' ? metadata : null;
 

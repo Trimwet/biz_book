@@ -4,6 +4,15 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'bg-primary-600',
+    'bg-primary-700',
+    'hover:bg-primary-700',
+    'bg-green-600',
+    'bg-green-700',
+    'hover:bg-green-700',
+    'text-white',
+  ],
   theme: {
     extend: {
       colors: {

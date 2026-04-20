@@ -1,195 +1,337 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '../hooks/useUser';
 import Logo from './Logo';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Eye,
+  EyeSlash,
+  ShieldCheck,
+  Storefront,
+  CaretDown,
+} from '@phosphor-icons/react';
 
-const SignupChoice = () => {
+const NIGERIAN_STATES = [
+  'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
+  'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','Federal Capital Territory',
+  'Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara',
+  'Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers',
+  'Sokoto','Taraba','Yobe','Zamfara',
+];
+
+const BUSINESS_CATEGORIES = [
+  'Electronics','Fashion & Clothing','Food & Groceries','Health & Beauty',
+  'Home & Garden','Sports & Outdoors','Computers & Laptops','Phones & Tablets',
+  'Automotive','Books & Education','Services','Other',
+];
+
+// ── Validation ────────────────────────────────────────────────────────────────
+
+const baseSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Enter a valid email address'),
+  password: z
+    .string()
+    .min(8, 'At least 8 characters')
+    .regex(/[A-Z]/, 'Include an uppercase letter')
+    .regex(/[a-z]/, 'Include a lowercase letter')
+    .regex(/[0-9]/, 'Include a number')
+    .regex(/[^A-Za-z0-9]/, 'Include a special character'),
+  location: z.string().min(1, 'Select your state'),
+  wantToSell: z.boolean(),
+  businessName: z.string().optional(),
+  businessCategory: z.string().optional(),
+  phone: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.wantToSell) {
+    if (!data.businessName || data.businessName.trim().length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Business name is required', path: ['businessName'] });
+    }
+    if (!data.businessCategory) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select a business category', path: ['businessCategory'] });
+    }
+  }
+});
+
+type FormValues = z.infer<typeof baseSchema>;
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function SignupChoice() {
+  const navigate = useNavigate();
+  const { register: registerUser, apiRequest } = useUser() as any;
+  const [showPassword, setShowPassword] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [emailTaken, setEmailTaken] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(baseSchema),
+    mode: 'onBlur',
+    defaultValues: {
+      fullName: '', email: '', password: '', location: '',
+      wantToSell: false, businessName: '', businessCategory: '', phone: '',
+    },
+  });
+
+  const wantToSell = watch('wantToSell');
+
+  const onSubmit = async (values: FormValues) => {
+    setServerError('');
+    setEmailTaken(false);
+    try {
+      await registerUser({ fullName: values.fullName, email: values.email, password: values.password, location: values.location }, 'shopper');
+
+      if (values.wantToSell && values.businessName && values.businessCategory) {
+        try {
+          await apiRequest('/api/auth/upgrade-to-vendor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              businessName: values.businessName,
+              category: values.businessCategory,
+              location: values.location,
+              phone: values.phone || '',
+            }),
+          });
+          navigate('/vendor/dashboard');
+        } catch {
+          navigate('/shopper/dashboard');
+        }
+      } else {
+        navigate('/shopper/dashboard');
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Failed to create account. Please try again.';
+      if (msg.toLowerCase().includes('email') && msg.toLowerCase().includes('exists')) {
+        setEmailTaken(true);
+        setServerError('That email is already registered. Try signing in instead.');
+      } else {
+        setServerError(msg);
+      }
+    }
+  };
+
+  // ── Field helpers ─────────────────────────────────────────────────────────
+  const input = (hasError: boolean) =>
+    `w-full px-4 py-3 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all text-[15px] ${
+      hasError
+        ? 'border-red-200 focus:ring-red-500/20 focus:border-red-400'
+        : 'border-gray-200 focus:ring-blue-500/20 focus:border-blue-400'
+    }`;
+
+  const fieldErr = (msg?: string) =>
+    msg ? <p className="mt-1 text-xs text-red-500">{msg}</p> : null;
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="text-center mb-12">
-          <div className="flex justify-center mb-8">
+    <div className="min-h-screen bg-white flex">
+
+      {/* ── Left branding panel (desktop) ──────────────────────────────────── */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-white relative overflow-hidden">
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-blue-100/60 blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-sm text-center px-8">
+          <div className="mb-8">
             <Logo size="xlarge" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Choose Your Path
+
+          <h1 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">
+            One account, every side of campus
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Join Nigeria's most trusted marketplace. Whether you're looking to shop smart or grow your business, we have the right tools for you.
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            Shop smart or sell confidently — or both. BIZ BOOK gives you a single account that does it all.
           </p>
-          
-          {/* Trust Indicators */}
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 mb-12">
-            <div className="flex items-center text-gray-600">
-              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+
+          <div className="space-y-2.5 text-left">
+            {[
+              'Compare prices across verified vendors',
+              'Track products and get price alerts',
+              'List products and manage sales',
+              'Chat directly with buyers or sellers',
+            ].map((f) => (
+              <div key={f} className="flex items-center gap-3 rounded-xl bg-white/80 border border-gray-100 px-4 py-2.5">
+                <ShieldCheck size={16} weight="fill" className="text-blue-500 flex-shrink-0" />
+                <span className="text-sm text-gray-700">{f}</span>
               </div>
-              <span className="font-medium">5,000+ Active Users</span>
-            </div>
-            <div className="flex items-center text-gray-600">
-              <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center mr-2">
-                <svg className="h-4 w-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <span className="font-medium">4.8/5 Rating</span>
-            </div>
-            <div className="flex items-center text-gray-600">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                <svg className="h-4 w-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <span className="font-medium">Secure & Trusted</span>
-            </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 max-w-4xl mx-auto">
-          {/* Shopper Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-8 hover:border-blue-200 transition-colors">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Smart Shopper</h3>
-              <p className="text-gray-600">Make informed purchasing decisions with comprehensive comparison tools</p>
-            </div>
-            
-            <div className="space-y-4 mb-8">
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Advanced search and filtering</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Real-time price comparison</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Smart price alerts and watchlists</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Verified customer reviews</span>
-              </div>
-            </div>
-            
-            <Link
-              to="/signup/shopper"
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg text-center font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
-            >
-              Join as Shopper
-              <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+      {/* ── Right form panel ───────────────────────────────────────────────── */}
+      <div className="w-full lg:w-1/2 flex items-start justify-center px-5 sm:px-8 py-10 overflow-y-auto">
+        <div className="w-full max-w-sm">
+
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <Logo size="large" />
           </div>
 
-          {/* Vendor Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-8 hover:border-green-200 transition-colors relative">
-            {/* Popular Badge */}
-            <div className="absolute -top-2 -right-2 bg-green-600 text-white px-3 py-1 rounded-lg text-sm font-medium">
-              Popular Choice
-            </div>
-            
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Business Vendor</h3>
-              <p className="text-gray-600">Grow your business with powerful analytics and direct customer access</p>
-            </div>
-            
-            <div className="space-y-4 mb-8">
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Professional product management</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Advanced business analytics</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Customer insights and reports</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-gray-700">Marketing and promotion tools</span>
-              </div>
-            </div>
-            
-            <Link
-              to="/signup/vendor"
-              className="w-full bg-green-600 text-white py-3 px-6 rounded-lg text-center font-semibold hover:bg-green-700 transition-colors flex items-center justify-center"
-            >
-              Join as Vendor
-              <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+          <div className="mb-7">
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Create your account</h2>
+            <p className="mt-1.5 text-sm text-gray-500">Free forever. No credit card required.</p>
           </div>
-        </div>
 
-        <div className="mt-16 text-center">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+          {serverError && (
+            <div role="alert" className="mb-5 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm flex items-start justify-between gap-3">
+              <span>{serverError}</span>
+              {emailTaken && (
+                <Link to="/login" className="text-red-600 underline font-medium whitespace-nowrap flex-shrink-0">
+                  Sign in →
+                </Link>
+              )}
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">Already have an account?</span>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+
+            {/* Full name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <input {...register('fullName')} type="text" autoComplete="name" placeholder="Ada Okonkwo" className={input(!!errors.fullName)} />
+              {fieldErr(errors.fullName?.message)}
             </div>
-          </div>
-          <div className="mt-4">
-            <Link 
-              to="/login" 
-              className="text-blue-600 hover:text-blue-500 font-medium transition-colors"
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <input {...register('email')} type="email" autoComplete="email" placeholder="you@university.edu" className={input(!!errors.email)} />
+              {fieldErr(errors.email?.message)}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <div className="relative">
+                <input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  className={input(!!errors.password) + ' pr-12'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {errors.password
+                ? fieldErr(errors.password.message)
+                : <p className="mt-1 text-xs text-gray-400">8+ chars · uppercase · lowercase · number · special</p>
+              }
+            </div>
+
+            {/* Location */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">State</label>
+              <div className="relative">
+                <select {...register('location')} className={input(!!errors.location) + ' appearance-none bg-white'}>
+                  <option value="">Select your state</option>
+                  {NIGERIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <CaretDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+              {fieldErr(errors.location?.message)}
+            </div>
+
+            {/* ── Sell toggle ───────────────────────────────────────────────── */}
+            <div className={`rounded-2xl border-2 transition-all duration-200 ${wantToSell ? 'border-blue-400 bg-blue-50/40' : 'border-gray-200 bg-gray-50/50'}`}>
+              <label className="flex items-start gap-3.5 p-4 cursor-pointer select-none">
+                <div className="flex-shrink-0 mt-0.5">
+                  <input
+                    {...register('wantToSell')}
+                    type="checkbox"
+                    className="w-4.5 h-4.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <Storefront size={16} weight="fill" className="text-blue-500" />
+                    I also want to sell on BIZ BOOK
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">Open your Vendor Space now — or do it later from your dashboard</p>
+                </div>
+              </label>
+
+              {wantToSell && (
+                <div className="px-4 pb-4 space-y-3 border-t border-blue-100 pt-4 animate-slide-in-up">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Name <span className="text-red-400">*</span></label>
+                    <input {...register('businessName')} type="text" placeholder="e.g. Chidi Electronics" className={input(!!errors.businessName)} />
+                    {fieldErr(errors.businessName?.message)}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Category <span className="text-red-400">*</span></label>
+                      <div className="relative">
+                        <select {...register('businessCategory')} className={input(!!errors.businessCategory) + ' appearance-none bg-white text-sm'}>
+                          <option value="">Select…</option>
+                          {BUSINESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <CaretDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      </div>
+                      {fieldErr(errors.businessCategory?.message)}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone <span className="text-gray-400 font-normal text-xs">(opt.)</span></label>
+                      <input {...register('phone')} type="tel" placeholder="+234 800…" className={input(false)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
             >
-              Sign in here
-            </Link>
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                wantToSell ? 'Create account & open Vendor Space' : 'Create account'
+              )}
+            </button>
+          </form>
+
+          {/* Divider + login */}
+          <div className="mt-8">
+            <div className="relative flex items-center">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="px-3 text-xs text-gray-400">Already have an account?</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            <div className="mt-4 text-center">
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                Sign in
+              </Link>
+            </div>
           </div>
+
+          <p className="mt-6 text-center text-xs text-gray-400">
+            By creating an account you agree to our{' '}
+            <button type="button" className="underline hover:text-gray-600">Terms of Service</button>
+            {' '}and{' '}
+            <button type="button" className="underline hover:text-gray-600">Privacy Policy</button>.
+          </p>
         </div>
       </div>
     </div>
   );
-};
-
-export default SignupChoice;
+}

@@ -1,6 +1,18 @@
 import { cn } from '../../utils/cn';
-import React from 'react';
+import type React from 'react';
+
 // Card component with multiple variants and hover effects
+type CardVariant = 'default' | 'elevated' | 'outlined' | 'ghost' | 'gradient' | 'glass';
+type CardPadding = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+  variant?: CardVariant;
+  hoverable?: boolean;
+  padding?: CardPadding;
+  children: React.ReactNode;
+  onClick?: () => void;
+}
 
 const Card = ({ 
   className,
@@ -10,8 +22,8 @@ const Card = ({
   children,
   onClick,
   ...props 
-}) => {
-  const variants = {
+}: CardProps) => {
+  const variants: Record<CardVariant, string> = {
     default: 'bg-white border border-gray-200 shadow-sm',
     elevated: 'bg-white shadow-lg',
     outlined: 'bg-transparent border-2 border-gray-300',
@@ -20,7 +32,7 @@ const Card = ({
     glass: 'bg-white/70 backdrop-blur-md border border-white/20 shadow-xl',
   };
 
-  const paddings = {
+  const paddings: Record<CardPadding, string> = {
     none: 'p-0',
     xs: 'p-2',
     sm: 'p-4',
@@ -54,31 +66,36 @@ const Card = ({
 };
 
 // Sub-components for better composition
-Card.Header = ({ className, children, ...props }) => (
+interface SubComponentProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+  children: React.ReactNode;
+}
+
+Card.Header = ({ className, children, ...props }: SubComponentProps) => (
   <div className={cn('pb-4 border-b border-gray-200', className)} {...props}>
     {children}
   </div>
 );
 
-Card.Title = ({ className, children, ...props }) => (
+Card.Title = ({ className, children, ...props }: SubComponentProps) => (
   <h3 className={cn('text-xl font-semibold text-gray-900', className)} {...props}>
     {children}
   </h3>
 );
 
-Card.Description = ({ className, children, ...props }) => (
+Card.Description = ({ className, children, ...props }: SubComponentProps) => (
   <p className={cn('text-sm text-gray-600 mt-1', className)} {...props}>
     {children}
   </p>
 );
 
-Card.Content = ({ className, children, ...props }) => (
+Card.Content = ({ className, children, ...props }: SubComponentProps) => (
   <div className={cn('pt-4', className)} {...props}>
     {children}
   </div>
 );
 
-Card.Footer = ({ className, children, ...props }) => (
+Card.Footer = ({ className, children, ...props }: SubComponentProps) => (
   <div className={cn('pt-4 mt-4 border-t border-gray-200 flex items-center justify-between', className)} {...props}>
     {children}
   </div>

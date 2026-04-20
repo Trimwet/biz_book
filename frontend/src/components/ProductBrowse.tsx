@@ -131,8 +131,8 @@ const ProductBrowse = () => {
     <div className="min-h-screen bg-neutral-50">
 
       {/* ── Sticky header ─────────────────────────────────────────────────── */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-neutral-200 sticky top-0 z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-white/95 backdrop-blur-lg border-b border-gray-100 sticky top-14 z-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Top row: title + filter button */}
           <div className="flex items-center justify-between py-4 gap-3">
@@ -242,7 +242,7 @@ const ProductBrowse = () => {
 
       {/* ── Active filter chips ────────────────────────────────────────────── */}
       {(category || sort !== 'created_at:DESC') && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 flex-wrap">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-neutral-500">Active filters:</span>
           {category && (
             <button
@@ -277,15 +277,25 @@ const ProductBrowse = () => {
         onClose={() => setShowFilters(false)}
         title="Filter & Sort"
       >
-        <div className="space-y-5">
-          {/* Category */}
-          <div>
-            <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Category</h4>
-            <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col space-y-8 py-2">
+          {/* Category Section */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-neutral-900">Categories</h4>
+              {category && (
+                <button 
+                  onClick={clearCategory}
+                  className="text-xs text-primary-600 font-medium"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2.5">
               <button
                 onClick={() => { clearCategory(); setShowFilters(false); }}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-150
-                  ${!category ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200
+                  ${!category ? 'bg-neutral-900 text-white border-neutral-900 shadow-md shadow-neutral-200' : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'}`}
               >
                 All
               </button>
@@ -293,39 +303,42 @@ const ProductBrowse = () => {
                 <button
                   key={cat}
                   onClick={() => { setCategory(cat === category ? '' : cat); setShowFilters(false); }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-150
-                    ${category === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200
+                    ${category === cat ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100' : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'}`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* Sort */}
-          <div>
-            <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Sort By</h4>
-            <div className="space-y-1.5">
+          {/* Sort Section */}
+          <section>
+            <h4 className="text-sm font-bold text-neutral-900 mb-4">Sort Products By</h4>
+            <div className="flex flex-col gap-2">
               {SORT_OPTIONS.map((o) => (
                 <button
                   key={o.value}
                   onClick={() => { setSort(o.value); setShowFilters(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-all duration-150
+                  className={`w-full text-left px-4 py-3 rounded-xl text-sm border transition-all duration-200 flex items-center justify-between
                     ${sort === o.value
-                      ? 'bg-primary-50 text-primary-700 border-primary-200 font-medium'
-                      : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
+                      ? 'bg-primary-50 text-primary-700 border-primary-200 font-semibold'
+                      : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300'
                     }`}
                 >
                   {o.label}
+                  {sort === o.value && (
+                    <div className="w-2 h-2 rounded-full bg-primary-600" />
+                  )}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         </div>
       </FilterDrawer>
 
       {/* ── Product grid ──────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Error state */}
         {isError && !isLoading && (

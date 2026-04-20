@@ -1,25 +1,61 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { listListings, ListingItem } from '../api/listings';
+import {
+  MagnifyingGlass,
+  Faders,
+  MapPin,
+  Eye,
+  Heart,
+  Scales,
+  Storefront,
+  ClockCounterClockwise,
+} from '@phosphor-icons/react';
+import RecommendedStrip from './RecommendedStrip';
 
 export default function ProductSearch() {
-  const [query, setQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get('query') || '';
+
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('recentSearches');
+      if (stored) setRecentSearches(JSON.parse(stored));
+    } catch (e) {}
+  }, []);
+
+  // Auto-search on mount if query param exists
+  useEffect(() => {
+    if (initialQuery.trim()) {
+      doSearch(initialQuery);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function doSearch(q: string) {
     setHasSearched(true);
-    if (!query.trim()) {
+    if (!q.trim()) {
       setResults([]);
       return;
     }
+    
+    // Save to recent searches
+    try {
+      const updated = [q.trim(), ...recentSearches.filter(s => s.toLowerCase() !== q.trim().toLowerCase())].slice(0, 5);
+      setRecentSearches(updated);
+      localStorage.setItem('recentSearches', JSON.stringify(updated));
+    } catch (e) {}
+
     setLoading(true);
     setError(null);
     try {
-      const { items } = await listListings({ query, limit: 12, sortBy: 'relevance', sortOrder: 'DESC' });
+      const { items } = await listListings({ query: q, limit: 12, sortBy: 'relevance', sortOrder: 'DESC' });
       setResults(items || []);
     } catch (e) {
       console.error('search error:', e);
@@ -29,105 +65,186 @@ export default function ProductSearch() {
     }
   }
 
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    doSearch(query);
+  }
+
+  function handleRecentClick(term: string) {
+    setQuery(term);
+    doSearch(term);
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Product Search</h1>
-          <p className="text-gray-600">Find the best prices from verified vendors</p>
+    <div className="min-h-screen bg-gray-50/50">
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-5 py-6 sm:py-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight mb-1">Search</h1>
+          <p className="text-sm text-gray-500">Find the best deals from verified vendors</p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Search bar */}
-        <form onSubmit={onSubmit} className="bg-white border border-gray-200 rounded-lg p-4 mb-8">
-          <div className="relative">
+      <div className="max-w-5xl mx-auto px-5 py-6">
+
+        {/* ── Search bar ───────────────────────────────────────────────────── */}
+        <form onSubmit={onSubmit} className="mb-8">
+          <div className="flex items-center bg-white border border-gray-200 rounded-2xl px-4 py-2.5 shadow-sm hover:shadow-md hover:border-gray-300 focus-within:border-blue-300 focus-within:shadow-md focus-within:shadow-blue-50 transition-all duration-200">
+            <MagnifyingGlass size={20} className="text-gray-400 flex-shrink-0" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products (e.g., iPhone 15, Samsung TV)"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 outline-none px-3 py-1.5 text-gray-900 placeholder-gray-400 bg-transparent text-[15px]"
             />
-            <svg className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
             <button
               type="submit"
               disabled={loading}
-              className="mt-3 md:mt-0 md:absolute md:right-2 md:top-1/2 md:-translate-y-1/2 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-black disabled:opacity-50"
+              className="px-5 py-2 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Searching…' : 'Search'}
             </button>
           </div>
         </form>
 
+        {/* ── Error ────────────────────────────────────────────────────────── */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong className="font-bold">Error:</strong>
-            <span className="block sm:inline"> {error}</span>
+          <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm mb-6" role="alert">
+            {error}
           </div>
         )}
 
-        {/* Results */}
+        {/* ── Loading ──────────────────────────────────────────────────────── */}
         {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {[...Array(12)].map((_, i) => (
-              <div key={i} className="h-72 bg-white border border-gray-200 rounded-lg animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+                <div className="p-3.5 space-y-2">
+                  <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-4 bg-gray-100 rounded animate-pulse w-2/3" />
+                  <div className="h-5 bg-gray-100 rounded animate-pulse w-1/2" />
+                </div>
+              </div>
             ))}
           </div>
         )}
 
-        {!loading && !error && hasSearched && results.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
-            <p className="text-gray-600">Try adjusting your search terms.</p>
-          </div>
-        )}
-
+        {/* ── Initial State (No Search Yet) ────────────────────────────────── */}
         {!loading && !error && !hasSearched && results.length === 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Start Your Search</h3>
-            <p className="text-gray-600">Enter a product name above to begin.</p>
+          <div className="space-y-8 animate-fade-in">
+            {recentSearches.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-3">
+                  <ClockCounterClockwise size={18} className="text-gray-400" />
+                  Recently Searched
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {recentSearches.map((term, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleRecentClick(term)}
+                      className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-white border border-gray-100 rounded-2xl p-6">
+              <RecommendedStrip title="Recommended for you" />
+            </div>
           </div>
         )}
 
+        {/* ── No results ───────────────────────────────────────────────────── */}
+        {!loading && !error && hasSearched && results.length === 0 && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-12 sm:p-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-5">
+              <Faders size={28} className="text-gray-400" weight="duotone" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">No products found</h3>
+            <p className="text-sm text-gray-500">Try adjusting your search terms or browse all products.</p>
+          </div>
+        )}
+
+        {/* ── Results ──────────────────────────────────────────────────────── */}
         {!loading && !error && results.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Search Results</h2>
-              <div className="text-sm text-gray-600">{results.length} items</div>
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Results</h2>
+              <span className="text-sm text-gray-400">{results.length} item{results.length !== 1 ? 's' : ''}</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {results.map((r) => (
-                <div key={r.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
-                  <div className="w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {results.map((r, idx) => (
+                <div
+                  key={r.id}
+                  className="bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200 animate-slide-in-up group"
+                  style={{ animationDelay: `${Math.min(idx, 8) * 40}ms`, animationFillMode: 'both' }}
+                >
+                  {/* Image */}
+                  <div className="aspect-[4/3] bg-gray-50 overflow-hidden">
                     {r.cover_image ? (
-                      <img src={r.cover_image} alt={r.title} className="w-full h-full object-cover" />
+                      <img
+                        src={r.cover_image}
+                        alt={r.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     ) : (
-                      <div className="h-6 w-6 rounded bg-gray-200" />
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100" />
+                      </div>
                     )}
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">{r.title}</h3>
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-lg font-semibold text-gray-900">₦{Number(r.price || 0).toLocaleString()}</span>
-                      {r.category && <span className="text-[11px] uppercase tracking-wide text-gray-500">{r.category}</span>}
+
+                  {/* Content */}
+                  <div className="p-3.5">
+                    <h3 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug mb-1.5">{r.title}</h3>
+
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-base font-bold text-gray-900">
+                        ₦{Number(r.price || 0).toLocaleString()}
+                      </span>
+                      {r.category && (
+                        <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">{r.category}</span>
+                      )}
                     </div>
-                    <div className="text-sm text-gray-600 mb-4">
-                      <div className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2" />{r.vendor?.name}</div>
-                      <div className="flex items-center mt-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2" />{r.city ? `${r.city}, ${r.state || 'Nigeria'}` : (r.state || r.vendor?.location || 'Nigeria')}</div>
+
+                    {/* Vendor & location */}
+                    <div className="text-xs text-gray-500 space-y-0.5 mb-3">
+                      {r.vendor?.name && (
+                        <div className="flex items-center gap-1.5">
+                          <Storefront size={12} className="text-gray-400" />
+                          <span className="truncate">{r.vendor.name}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <MapPin size={12} className="text-gray-400" />
+                        <span className="truncate">
+                          {r.vendor?.location || 'Nigeria'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Link to={`/product/${r.id}`} className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+
+                    {/* Actions */}
+                    <div className="flex gap-1.5 pt-2.5 border-t border-gray-50">
+                      <Link
+                        to={`/product/${r.id}`}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <Eye size={14} />
                         View
                       </Link>
-                      <button className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                      <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Heart size={14} />
                         Save
                       </button>
-                      <button className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                      <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Scales size={14} />
                         Compare
                       </button>
                     </div>
